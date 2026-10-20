@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+models/*.joblib
+data/processed/*.csv
+data/processed/*.json
+!data/raw/food_waste_pilot.db

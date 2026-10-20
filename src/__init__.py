@@ -1,0 +1,2 @@
+"""ResQData AI project package."""
+

@@ -1,0 +1,10 @@
+{
+  "indicator": "Food waste collected per capita",
+  "country": "Spain",
+  "year": 2022,
+  "value_kg_per_capita": 65,
+  "dataset": "cei_pc035",
+  "source_url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/cei_pc035?lang=EN&geo=ES&time=2022",
+  "source": "Eurostat",
+  "methodological_note": "<p>The indicator is defined as&nbsp;the amount of food waste generated per year divided by the average population of the country.</p><p>Food waste is measured as fresh mass all along the food value chain, including production sites, processing and manufacture, retail and distribution, restaurants and food services and households. </p>"
+}
