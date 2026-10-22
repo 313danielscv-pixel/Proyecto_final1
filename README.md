@@ -28,7 +28,6 @@ La plataforma no exige un esquema único ni datos de caducidad. Cada módulo se 
 
 - [Plantillas y contratos](docs/06_contratos_de_datos.md).
 - [Plantillas CSV](data/templates/).
-- [Informe acumulativo para GPT](docs/INFORME_POR_FASES_PARA_GPT.md).
 - [Guion para la presentación](docs/04_guion_presentacion.md) y [lista de comprobación](docs/05_lista_de_comprobacion.md).
 
 ## Datos y transparencia
@@ -104,7 +103,7 @@ python -m src.real_demand
 ```
 
 Para regenerar la evaluación real, descarga antes las dos particiones oficiales de FreshRetailNet-50K en `data/external/freshretailnet/`, tal como se explica en [07_datos_reales_y_demanda.md](docs/07_datos_reales_y_demanda.md).
-La lectura de esos archivos Parquet requiere `pyarrow`, incluido en `requirements.txt`. El ZIP seguro para revisión de GPT excluye deliberadamente estos datos externos y no es un paquete ejecutable completo.
+La lectura de esos archivos Parquet requiere `pyarrow`, incluido en `requirements.txt`.
 
 ## Verificación
 
