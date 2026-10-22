@@ -1,0 +1,9 @@
+{
+  "dataset": "FreshRetailNet-50K",
+  "license": "CC BY 4.0",
+  "source_url": "https://huggingface.co/datasets/Dingdong-Inc/FreshRetailNet-50K",
+  "evaluation_method": "Seasonal naive: sales from seven days earlier; 100 deterministic store-product series.",
+  "evaluation_rows": 700,
+  "mae": 0.5109,
+  "rmse": 0.8352
+}

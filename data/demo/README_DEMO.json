@@ -1,0 +1,18 @@
+{
+  "real_source": "FreshRetailNet-50K by Dingdong Inc., CC BY 4.0",
+  "source_url": "https://huggingface.co/datasets/Dingdong-Inc/FreshRetailNet-50K",
+  "real_fields": [
+    "date",
+    "product_id",
+    "quantity",
+    "store_id",
+    "promotion"
+  ],
+  "selected_store": "FRN-STORE-18",
+  "selected_product_count": 8,
+  "scenario_fields": {
+    "inventory": "Stock, lead time and safety stock are demonstration assumptions.",
+    "costs": "Unit cost, price and holding cost are demonstration assumptions.",
+    "lots": "Lot stock and expiry date are demonstration assumptions."
+  }
+}

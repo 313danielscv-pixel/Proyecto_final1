@@ -84,7 +84,7 @@ def build_risk_snapshots(tables: dict[str, pd.DataFrame]) -> pd.DataFrame:
 def quality_report(snapshots: pd.DataFrame, tables: dict[str, pd.DataFrame]) -> dict[str, object]:
     """Summarize source and output quality checks for delivery documentation."""
     return {
-        "source_type": "Synthetic operational pilot generated with a fixed random seed",
+        "source_type": "Synthetic operational pilot included with the project",
         "source_database": str(DEFAULT_DATABASE.relative_to(ROOT)),
         "source_rows": {name: int(len(frame)) for name, frame in tables.items()},
         "snapshot_rows": int(len(snapshots)),

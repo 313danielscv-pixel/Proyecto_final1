@@ -1,56 +1,43 @@
-# Modelo de riesgo y validación
+# Métodos, evaluación y límites
 
-## Enfoque
+ResQ Intelligence combina análisis descriptivo, cálculos operativos y escenarios. No todos los resultados son predicciones y la app identifica la naturaleza de cada uno.
 
-El problema se formula como clasificación binaria: para cada instantánea, estimar si el lote acabará con merma. Se utiliza un `RandomForestClassifier` porque combina relaciones no lineales, variables numéricas y categorías codificadas sin exigir una relación lineal entre ellas.
+## Referencia de demanda con datos reales
 
-El pipeline aplica imputación y codificación one-hot solo dentro del modelo. Esto evita que la preparación de categorías use información de la partición de validación.
+La pestaña **Demanda real** evalúa una línea base estacional ingenua sobre FreshRetailNet-50K. Para cada producto-tienda, la predicción de un día es la venta observada siete días antes. El proceso selecciona de manera determinista hasta 100 series y evalúa los siete días disponibles en el periodo de evaluación.
 
-## Separación de datos
-
-Una misma mercancía puede producir varias instantáneas a lo largo de su vida útil. Dividir filas al azar permitiría que instantáneas del mismo lote aparecieran en entrenamiento y prueba, aumentando artificialmente las métricas.
-
-Por ello se usa `GroupShuffleSplit` con `lote_id` como grupo:
-
-- Entrenamiento: 20.426 instantáneas, 2.707 lotes.
-- Validación: 7.049 instantáneas, 903 lotes.
-- Tasa positiva en validación: 18,43 %.
-
-## Resultados medidos
-
-| Métrica | Resultado |
+| Métrica | Resultado documentado |
 |---|---:|
-| AUC-ROC | 0,9897 |
-| Average precision | 0,9546 |
-| Precisión | 0,8743 |
-| Recall | 0,9099 |
-| F1 | 0,8917 |
-| Umbral | 0,50 |
+| Observaciones evaluadas | 700 |
+| MAE | 0,5109 |
+| RMSE | 0,8352 |
 
-Estas métricas se generan en `data/processed/model_metrics.json` al ejecutar `python -m src.train_model`.
+La separación es temporal: la referencia usa observaciones anteriores y se compara con un periodo posterior. MAE y RMSE resumen el error de esa evaluación; no garantizan la misma precisión en otro comercio. La fuente, licencia, preparación y límites se detallan en [07_datos_reales_y_demanda.md](07_datos_reales_y_demanda.md).
 
-## Traducción a decisión
+## Cálculos de inventario y lotes
 
-La probabilidad no ejecuta automáticamente una acción. La política de negocio usa niveles transparentes:
+La vista de inventario calcula cobertura a partir de unidades disponibles y demanda media por producto-día observado. También estima capital expuesto como unidades en stock por coste unitario, y marca señales de rotura o sobrestock con los campos de plazo de reposición y stock mínimo cuando existen.
 
-| Condición | Acción |
-|---|---|
-| Riesgo inferior al 30 % | Mantener precio y vigilar |
-| Riesgo entre 30 % y 60 % | Descuento preventivo del 15 % |
-| Riesgo entre 60 % y 85 % | Descuento de aceleración del 30 % |
-| Riesgo superior al 85 % | Descuento de liquidación del 50 % |
-| Riesgo superior al 75 % y caducidad hoy | Preparar donación o retirada segura |
+El módulo empresarial de lotes no es un clasificador entrenado: es una estimación determinista basada en demanda histórica, stock disponible y días hasta la fecha límite. El resultado se expresa como proporción estimada de stock no vendido. Requiere al menos 30 días de ventas observadas por producto y no debe confundirse con una probabilidad de merma.
 
-El coste expuesto se calcula como `probabilidad × stock × coste unitario`. El importe recuperable es una estimación de escenario según la acción; no es un ahorro ya conseguido.
+## Escenarios y sensibilidad
 
-## Limitaciones
+El simulador compara margen base y margen bajo cambios introducidos por la persona usuaria en precio y demanda, descontando coste de producto y almacenamiento. La matriz de sensibilidad varía supuestos de precio y demanda en un rango ilustrativo de −20 % a +20 %.
 
-Los resultados son altos porque el generador del piloto incorpora patrones de tienda, categoría y descuentos. No demuestran que el algoritmo alcance el mismo rendimiento con datos reales.
+La matriz responde a “¿qué pasaría si…?” bajo las fórmulas y valores introducidos. No predice la reacción real de la demanda ante el precio, no asigna probabilidades a los escenarios y no mide ahorros realizados.
 
-Antes de desplegar se debe:
+## EDA y validación
 
-1. Reentrenar con datos históricos reales y anonimizados.
-2. Validar temporalmente, usando un periodo futuro como prueba.
-3. Medir el efecto causal de los descuentos con un piloto controlado.
-4. Definir restricciones de margen, seguridad alimentaria y disponibilidad de ONG.
-5. Monitorizar deriva de datos, tasa de alertas y ahorro realizado.
+Los análisis estadísticos son exploratorios: resumen distribuciones, diferencias entre dos grupos, relaciones, cambios temporales y estabilidad de distribuciones. El bootstrap estima un intervalo de la media bajo el supuesto de independencia. PSI compara distribuciones entre dos periodos. K-Means agrupa observaciones según las variables elegidas. Ninguno identifica por sí solo una causa ni valida una intervención empresarial.
+
+## Continuidad del piloto ResQData/FreshMarket
+
+El repositorio conserva el pipeline y el clasificador Random Forest del piloto histórico de merma. Se entrenaron con datos sintéticos y se dividieron los datos agrupando por lote para evitar que instantáneas del mismo lote aparezcan a ambos lados de la validación. Es una evidencia de desarrollo del caso original, no un modelo activo de ResQ Intelligence ni una métrica de rendimiento en producción. FreshMarket debe presentarse siempre como escenario sintético.
+
+## Qué sería necesario antes de operar
+
+1. Validar los contratos y las reglas con datos reales anonimizados de la empresa.
+2. Comparar modelos de demanda con una separación temporal y métricas adecuadas al negocio.
+3. Calibrar cualquier probabilidad con datos representativos antes de usarla como probabilidad.
+4. Medir las decisiones mediante un piloto controlado; no atribuir causalidad a una comparación observacional.
+5. Vigilar cambios de calidad y distribución, y revisar las recomendaciones con responsables humanos.

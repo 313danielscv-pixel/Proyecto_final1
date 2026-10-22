@@ -1,0 +1,2 @@
+lot_id,product_id,stock_available,expiry_date,unit_cost,store_id
+LOT-001,SKU-001,18,2026-01-18,4.20,MAD-01

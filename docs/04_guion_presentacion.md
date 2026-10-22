@@ -1,76 +1,165 @@
-# Guion de presentación final
+# Guion de exposición — ResQ Intelligence (15 minutos)
 
-Duración orientativa: 8 a 10 minutos.
+Usa diez diapositivas y una demo independiente. El texto entre comillas es una guía para explicar el proyecto con tus palabras.
 
-## 1. Problema: decidir antes de que caduque
+| Parte | Tiempo |
+|---|---:|
+| Diapositivas 1 a 7 | 7 minutos |
+| Demo de la aplicación | 3 minutos y 30 segundos |
+| Diapositivas 8 a 10 | 4 minutos y 30 segundos |
 
-“En frescos, detectar tarde un lote comprometido significa perder margen y alimento. La decisión no es solo si aplicar un descuento: es saber qué lote necesita atención primero y cuánto valor está en riesgo.”
+## Diapositiva 1 de 10 — Problema y propuesta
 
-Muestra: portada de ResQData AI y la pregunta de negocio.
+**Título:** `ResQ Intelligence: decisiones para proteger el margen`
 
-## 2. Caso de uso y usuario
+**Muestra:** demanda, inventario y rentabilidad como tres áreas conectadas.
 
-Presenta FreshMarket como escenario de piloto de cinco tiendas. Explica que el responsable de frescos necesita priorizar lotes cada mañana y que la aplicación no modifica TPVs.
+> “ResQ Intelligence es una plataforma B2B que convierte datos operativos en decisiones económicas explicables. Una empresa no pierde margen por una sola causa: la demanda cambia, el inventario se desequilibra y los costes afectan a cada decisión.”
 
-Muestra: `docs/01_caso_de_uso.md`.
+> “La pregunta que responde el proyecto es: ¿qué decisiones debe priorizar una empresa para proteger su margen a partir de su demanda, inventario y costes?”
 
-## 3. Datos y honestidad metodológica
+## Diapositiva 2 de 10 — Usuario y recorrido
 
-“El histórico operativo es sintético y reproducible; por eso no presento las métricas como resultados de producción. Lo uso para probar un flujo completo. Para dimensionar el problema incorporo el indicador oficial de Eurostat: 65 kg por habitante en España en 2022.”
+**Título:** `De CSV dispersos a una decisión priorizada`
 
-Muestra: fuente Eurostat y esquema de las seis tablas.
+**Muestra:** navegación lateral y flujo: cargar CSV/Excel → validar → explorar → priorizar → comparar escenarios.
 
-## 4. Evidencia del análisis
+> “El usuario puede ser un responsable de operaciones, compras o finanzas. Carga los datos que tiene: ventas, inventario, costes y, si existen, proveedores.”
 
-Destaca tres cifras:
+> “La plataforma valida la información antes de calcular nada. Después muestra evidencia, riesgos y escenarios. La previsión real se presenta aparte como demostración metodológica, no como previsión de la empresa usuaria.”
 
-- 17.422,10 EUR de coste de merma del piloto.
-- 8.397,10 EUR concentrados en platos preparados.
-- 16.196,60 EUR concentrados en Eixample, Vallecas y Ruzafa.
+## Diapositiva 3 de 10 — Contratos de datos
 
-Conclusión: no conviene repartir el esfuerzo por igual; el piloto comercial debería centrarse en categorías y tiendas concretas.
+**Título:** `Un núcleo reutilizable, no una plantilla rígida`
 
-## 5. Construcción del modelo
+**Muestra:** tabla con `ventas.csv`, `inventario.csv`, `costes.csv` y `proveedores.csv`.
 
-Explica las variables que estarían disponibles al tomar la decisión: días restantes, stock, velocidad de venta, categoría, tienda y coste. Aclara que las ventas futuras no se usan para construir la instantánea.
+> “Definí contratos de datos con campos mínimos por módulo. Para demanda se necesita fecha, producto y cantidad. Para inventario, producto y stock; la fecha es opcional. Para rentabilidad se necesitan costes y, si se quiere calcular margen, precio.”
 
-## 6. Validación
+> “La fecha de caducidad es opcional. Si existe, activa el caso de perecederos; si no existe, la plataforma sigue funcionando para otros sectores.”
 
-“No separé filas al azar: separé por lote. Así ningún lote aparece parcialmente en entrenamiento y parcialmente en prueba.”
+## Diapositiva 4 de 10 — Calidad de datos
 
-Muestra: AUC-ROC 0,9897, precision 0,8743 y recall 0,9099. Inmediatamente recuerda que proceden de un piloto sintético.
+**Título:** `No hay recomendaciones sin datos fiables`
 
-## 7. Demostración de la aplicación
+**Muestra:** reglas de validación y ejemplos de mensajes claros.
 
-Abre la pestaña **Predicción por lote**:
+> “La carga reconoce alias como fecha, SKU, producto, unidades o coste. Detecta campos ausentes, conversiones inválidas, negativos que deben revisarse y duplicados. No borra filas automáticamente. También hay una carga libre para EDA que conserva las columnas originales.”
 
-1. Elige una tienda y una categoría de plato preparado.
-2. Introduce dos días restantes, stock alto y venta diaria baja.
-3. Ejecuta la predicción.
-4. Explica la probabilidad, el coste expuesto y la acción recomendada.
+> “Si no hay datos suficientes, el sistema no inventa una predicción. Explica qué módulo no puede activarse y qué campo falta.”
 
-Después abre **Cartera de riesgo** y enseña cómo se priorizan los lotes por coste expuesto, no solo por porcentaje de riesgo.
+## Diapositiva 5 de 10 — Análisis exploratorio
 
-## 8. Valor de negocio
+**Título:** `Primero evidencias, después recomendaciones`
 
-“La salida no promete ahorro: convierte el riesgo en una lista de trabajo priorizada. La cadena puede empezar por las tres tiendas con más coste expuesto, medir la respuesta al descuento y comparar el desperdicio frente a un periodo de referencia.”
+**Muestra:** resumen empresarial de la demo con filtros, tendencia y productos; después, el EDA avanzado.
 
-## 9. Límites y siguiente paso
+> “El EDA empresarial permite investigar la evolución de ventas, medias móviles, productos, distribución diaria, patrones semanales y calidad. Los días sin datos no se convierten en cero y las filas inválidas o duplicadas se señalan sin borrarlas. El EDA avanzado añade perfilado, relaciones, comparación entre grupos, deriva, intervalos bootstrap y segmentos.”
 
-Termina con un plan de implantación:
+> “Los filtros afectan a la exploración, mientras que la vista de calidad conserva el contexto del archivo completo. Un valor extremo es un candidato a revisar, no un error confirmado. Los gráficos describen los registros; no prueban causalidad ni predicen ventas.”
 
-1. Integrar inventario, ventas y bajas reales anonimizadas.
-2. Ejecutar un piloto de ocho semanas en las tres tiendas prioritarias.
-3. Medir merma, margen, venta acelerada y donación.
-4. Ajustar umbrales antes de automatizar cualquier precio.
+## Diapositiva 6 de 10 — Datos reales y previsión de demanda
+
+**Título:** `Demanda real con evaluación temporal`
+
+**Muestra:** FreshRetailNet-50K, licencia CC BY 4.0, 4,5 millones de filas de entrenamiento y métricas.
+
+> “Para demostrar previsión sobre datos reales uso FreshRetailNet-50K, un conjunto de ventas reales de productos perecederos con descuentos, promociones, clima y roturas de stock.”
+
+> “La evaluación separa el tiempo: la referencia usa ventas de siete días antes y se evalúa sobre siete días posteriores. En un subconjunto reproducible de cien series, obtiene MAE 0,5109 y RMSE 0,8352. Es una línea base, no un modelo de producción.”
+
+> “Estos datos demuestran previsión de demanda. No afirmo que contengan costes internos, caducidades o mermas de la empresa usuaria.”
+
+## Diapositiva 7 de 10 — Inventario y rentabilidad
+
+**Título:** `De la demanda al riesgo económico`
+
+**Muestra:** fórmula de cobertura, capital expuesto, rotura y sobrestock.
+
+> “La plataforma cruza el inventario con la demanda observada. Calcula días de cobertura, riesgo de rotura si el stock no cubre el plazo de reposición y sobrestock si hay cobertura excesiva.”
+
+> “El capital expuesto es stock por coste unitario. No es una pérdida realizada; muestra dónde hay más dinero inmovilizado y dónde conviene analizar una decisión.”
+
+# Demo independiente — 3 minutos y 30 segundos
+
+## Paso 1 — Datos y calidad
+
+Pulsa **Cargar demostración con demanda real** en **Datos y calidad**. Si los datos demo no están generados, ejecuta `python -m src.demo_data` antes de la exposición. Como alternativa, carga los CSV de `data/templates/`.
+
+> “La empresa puede subir archivos independientes. El sistema detecta el mapeo de columnas y comunica cuántas filas son aptas, inválidas o duplicadas.”
+
+## Paso 2 — Análisis exploratorio
+
+Abre **Análisis exploratorio** y elige **Resumen empresarial**.
+
+> “Aquí veo la demanda diaria, los productos de mayor volumen y, si existe precio, la facturación. La plataforma no muestra métricas que sus datos no puedan respaldar.”
+
+## Paso 3 — Inventario y margen
+
+Abre **Inventario y margen**.
+
+> “Esta vista ordena los productos por capital expuesto y clasifica riesgo de rotura, sobrestock o equilibrio.”
+
+## Paso 4 — Escenarios
+
+Abre **Escenarios**.
+
+> “Ahora comparo un escenario base con un cambio de precio o demanda. El cambio de demanda es una hipótesis declarada por el usuario y el resultado se etiqueta como estimación.”
+
+## Paso 5 — Riesgo por lote y demanda real
+
+Abre **Riesgo por lote** y después **Demanda**.
+
+> “Riesgo por lote usa las ventas y los lotes cargados por la empresa y exige al menos treinta días de ventas por producto. El indicador es una proporción estimada de stock sin vender, no una probabilidad calibrada. Demanda demuestra la evaluación con una fuente externa. FreshMarket se conserva como caso sintético independiente.”
+
+## Cierre de la demo — Fuentes e informe
+
+Abre **Fuentes** para distinguir las ventas derivadas de FreshRetailNet de los supuestos sintéticos. Abre **Informe** y muestra el botón **Descargar informe Markdown**.
+
+> “El informe resume las comprobaciones y resultados disponibles, deja visible la procedencia y no incluye filas originales. Así otra persona puede revisar los supuestos y las limitaciones.”
+
+## Diapositiva 8 de 10 — Simulador económico
+
+**Título:** `Comparar decisiones sin prometer ahorros`
+
+**Muestra:** escenario base frente a descuento, reposición o cambio de coste.
+
+> “La plataforma compara ingreso, coste de producto, coste de almacenamiento y margen estimado. El usuario ve todos los supuestos y puede modificar el escenario.”
+
+> “No se presenta ninguna variación como ahorro conseguido. Es un cálculo de escenario que debe validarse con la operación real.”
+
+## Diapositiva 9 de 10 — Caso FreshMarket
+
+**Título:** `Un vertical especializado para perecederos`
+
+**Muestra:** riesgo por lote, caducidad, descuento, donación y EDA de merma.
+
+> “Conservo FreshMarket como origen y caso histórico especializado, sin confundirlo con los datos que aporta una empresa a ResQ Intelligence.”
+
+> “En ese caso se priorizan lotes por riesgo de merma y coste expuesto. Es una demostración sintética y no la fuente de los resultados de demanda real.”
+
+## Diapositiva 10 de 10 — Límites y siguiente paso
+
+**Título:** `Implementar con datos propios y medir impacto`
+
+**Muestra:** cuatro pasos: cargar, validar, piloto, medir.
+
+> “El siguiente paso para una empresa es cargar su histórico real, validar la calidad, evaluar su propio modelo de demanda y ejecutar un piloto controlado.”
+
+> “Se deben medir margen, stock, roturas, sobrestock y resultado de las decisiones antes de automatizar acciones.”
+
+> “En conclusión, ResQ Intelligence no sustituye el criterio empresarial: hace visibles los riesgos, explica los cálculos y permite comparar decisiones de forma responsable.”
 
 ## Preguntas previsibles
 
-**¿Por qué no automatizar ya los descuentos?**  
-Porque el histórico es sintético y se debe medir el margen y la respuesta del cliente con datos reales.
+**¿Por qué no predice siempre la demanda?**  
+> “La app no genera una previsión empresarial automática con cualquier CSV. La pestaña de demanda real muestra una línea base evaluada sobre FreshRetailNet; una empresa necesita validar un modelo propio con su histórico. El módulo de lotes, por separado, exige al menos treinta días observados por producto.”
 
-**¿Qué haría primero un cliente real?**  
-Conectar las fuentes mínimas: lote, caducidad, stock, venta diaria, precio y coste.
+**¿La matriz de sensibilidad predice qué hará el cliente?**  
+> “No. Muestra el efecto matemático de supuestos elegidos para precio y demanda. La respuesta real al precio debe medirse en un piloto.”
 
-**¿Qué diferencia aporta frente a una hoja de cálculo?**  
-La aplicación combina múltiples señales, calcula una probabilidad, prioriza por coste y mantiene una política de acción uniforme y auditable.
+**¿Las estimaciones son ahorros reales?**  
+> “No. Son comparaciones de escenarios basadas en supuestos visibles. El ahorro solo existe si se mide en la operación real.”
+
+**¿Por qué usar datos reales de otra empresa?**  
+> “Se usan para demostrar metodología de previsión con una fuente abierta y documentada. Cada cliente necesita evaluar su propio histórico antes de usar el modelo.”

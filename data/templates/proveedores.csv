@@ -1,0 +1,2 @@
+supplier_id,product_id,lead_time_days,minimum_order_quantity,purchase_unit_cost
+SUP-001,SKU-001,5,20,4.20

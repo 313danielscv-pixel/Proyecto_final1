@@ -1,0 +1,2 @@
+snapshot_date,product_id,on_hand_units,unit_cost,reorder_lead_days,minimum_stock,store_id,expiry_date
+2026-01-15,SKU-001,42,4.20,5,15,MAD-01,
