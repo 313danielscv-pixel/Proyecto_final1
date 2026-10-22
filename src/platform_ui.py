@@ -84,6 +84,15 @@ def _period_label(data: pd.DataFrame) -> str:
     return "Periodo no disponible"
 
 
+def _format_eda_number(value: float, decimals: int = 1) -> str:
+    formatted = f"{value:,.{decimals}f}"
+    return formatted.replace(",", "_").replace(".", ",").replace("_", ".")
+
+
+def _format_eda_date(value: object) -> str:
+    return pd.Timestamp(value).strftime("%d/%m/%Y")
+
+
 def render_home() -> None:
     """Show a data-aware overview without fabricating unavailable indicators."""
     business = _business_data()
@@ -536,10 +545,36 @@ def render_business_eda() -> None:
             figure.update_traces(connectgaps=False)
             figure.update_xaxes(tickformat="%d/%m")
             st.plotly_chart(figure, use_container_width=True, theme="streamlit")
-        st.caption(
-            "Las medias móviles usan solo las fechas con registro dentro de cada ventana; "
-            "no se rellenan fechas ausentes con cero."
-        )
+            observed_daily = daily.loc[daily["has_observation"]]
+            peak_day = observed_daily.loc[observed_daily["quantity"].idxmax()]
+            lowest_day = observed_daily.loc[observed_daily["quantity"].idxmin()]
+            latest_day = observed_daily.iloc[-1]
+            mean_units = observed_daily["quantity"].mean()
+            mean_7d = float(latest_day["average_7d"])
+            mean_30d = float(latest_day["average_30d"])
+            if mean_7d > mean_30d:
+                moving_average_reading = (
+                    f"La media de 7 días está {_format_eda_number(mean_7d - mean_30d)} unidades por encima "
+                    "de la de 30, señal de un ritmo reciente superior al promedio más amplio."
+                )
+            elif mean_7d < mean_30d:
+                moving_average_reading = (
+                    f"La media de 7 días está {_format_eda_number(mean_30d - mean_7d)} unidades por debajo "
+                    "de la de 30, señal de un ritmo reciente inferior al promedio más amplio."
+                )
+            else:
+                moving_average_reading = "Las dos medias coinciden, por lo que el ritmo reciente es similar al promedio amplio."
+            st.caption(
+                f"En {len(observed_daily)} fechas con registro, la media fue "
+                f"{_format_eda_number(mean_units)} unidades. El máximo fue "
+                f"{_format_eda_number(float(peak_day['quantity']))} el {_format_eda_date(peak_day['date'])} "
+                f"y el mínimo {_format_eda_number(float(lowest_day['quantity']))} el "
+                f"{_format_eda_date(lowest_day['date'])}. En la última fecha observada "
+                f"({_format_eda_date(latest_day['date'])}), las medias móviles son "
+                f"{_format_eda_number(mean_7d)} unidades (7 días) y "
+                f"{_format_eda_number(mean_30d)} (30 días). {moving_average_reading} "
+                "Las fechas sin fila no se interpretan como ventas cero."
+            )
 
     with products_tab:
         st.markdown("#### Rendimiento por producto")
@@ -559,6 +594,31 @@ def render_business_eda() -> None:
                 color_continuous_scale=["#183047", "#2CC9A7"],
             )
             st.plotly_chart(product_chart, use_container_width=True, theme="streamlit")
+            leading_product = product_summary.iloc[0]
+            lowest_shown_product = product_summary.head(15).iloc[-1]
+            if len(product_summary) == 1:
+                product_reading = (
+                    f"Solo aparece {leading_product['product_id']}, con "
+                    f"{_format_eda_number(float(leading_product['quantity']))} unidades; "
+                    "no hay otros productos para comparar."
+                )
+            else:
+                share = leading_product["share_pct"]
+                share_text = (
+                    f" ({_format_eda_number(float(share))}% del total)"
+                    if pd.notna(share)
+                    else ""
+                )
+                product_reading = (
+                    f"{leading_product['product_id']} lidera con "
+                    f"{_format_eda_number(float(leading_product['quantity']))} unidades{share_text}. "
+                    f"Entre los productos mostrados, {lowest_shown_product['product_id']} registra "
+                    f"menos unidades ({_format_eda_number(float(lowest_shown_product['quantity']))})."
+                )
+            st.caption(
+                f"En el periodo y filtros elegidos, {product_reading} El gráfico ordena por unidades, "
+                "no por facturación ni beneficio."
+            )
             display_products = product_summary.rename(
                 columns={
                     "product_id": "Producto",
@@ -609,6 +669,18 @@ def render_business_eda() -> None:
                 use_container_width=True,
                 hide_index=True,
             )
+            candidate_count = int(daily["outlier_iqr"].sum())
+            daily_mean = float(observed_daily["quantity"].mean())
+            daily_median = float(observed_daily["quantity"].median())
+            daily_max = observed_daily.loc[observed_daily["quantity"].idxmax()]
+            daily_min = observed_daily.loc[observed_daily["quantity"].idxmin()]
+            mean_median_reading = (
+                "La media por encima de la mediana sugiere que algunas fechas altas elevan el promedio."
+                if daily_mean > daily_median
+                else "La media por debajo de la mediana sugiere que algunas fechas bajas reducen el promedio."
+                if daily_mean < daily_median
+                else "Media y mediana coinciden en esta selección."
+            )
             chart_columns = st.columns(2)
             chart_columns[0].plotly_chart(
                 px.histogram(
@@ -621,6 +693,13 @@ def render_business_eda() -> None:
                 use_container_width=True,
                 theme="streamlit",
             )
+            chart_columns[0].caption(
+                f"En {len(observed_daily)} fechas, la media fue {_format_eda_number(daily_mean)} y la mediana "
+                f"{_format_eda_number(daily_median)} unidades. El máximo fue "
+                f"{_format_eda_number(float(daily_max['quantity']))} el {_format_eda_date(daily_max['date'])}; "
+                f"el mínimo, {_format_eda_number(float(daily_min['quantity']))} el "
+                f"{_format_eda_date(daily_min['date'])}. {mean_median_reading}"
+            )
             chart_columns[1].plotly_chart(
                 px.box(
                     observed_daily,
@@ -632,7 +711,19 @@ def render_business_eda() -> None:
                 use_container_width=True,
                 theme="streamlit",
             )
-            candidate_count = int(daily["outlier_iqr"].sum())
+            q1, q3 = observed_daily["quantity"].quantile([0.25, 0.75])
+            box_outlier_reading = (
+                f"La mitad central de las fechas quedó entre {_format_eda_number(float(q1))} y "
+                f"{_format_eda_number(float(q3))} unidades; la mediana fue "
+                f"{_format_eda_number(daily_median)}. La regla IQR señaló {candidate_count} "
+                "candidato(s), que requieren revisión y no son errores confirmados."
+                if len(observed_daily) >= 14
+                else f"La mitad central de las fechas quedó entre {_format_eda_number(float(q1))} y "
+                f"{_format_eda_number(float(q3))} unidades; la muestra es corta para evaluar candidatos IQR."
+            )
+            chart_columns[1].caption(
+                box_outlier_reading
+            )
             if len(observed_daily) < 14:
                 st.info("Muestra corta: se necesitan al menos 14 fechas para señalar candidatos IQR.")
             elif candidate_count:
@@ -649,8 +740,6 @@ def render_business_eda() -> None:
                 )
             else:
                 st.success("No se detectaron candidatos IQR en las fechas observadas.")
-        st.caption("Las estadísticas se calculan sobre fechas con registros válidos, no sobre días ausentes.")
-
     with temporal_tab:
         st.markdown("#### Patrones temporales observados")
         temporal_charts = st.columns(2)
@@ -672,6 +761,15 @@ def render_business_eda() -> None:
                 use_container_width=True,
                 theme="streamlit",
             )
+            peak_week = weekly_summary.loc[weekly_summary["quantity"].idxmax()]
+            lowest_week = weekly_summary.loc[weekly_summary["quantity"].idxmin()]
+            temporal_charts[0].caption(
+                f"La semana del {_format_eda_date(peak_week['week_start'])} tuvo más unidades: "
+                f"{_format_eda_number(float(peak_week['quantity']))} en {int(peak_week['observed_days'])} "
+                f"días observados. La menor fue la del {_format_eda_date(lowest_week['week_start'])}, "
+                f"con {_format_eda_number(float(lowest_week['quantity']))}. Compara también los días "
+                "observados: las semanas pueden tener cobertura distinta."
+            )
         if not weekday_summary.empty:
             temporal_charts[1].plotly_chart(
                 px.bar(
@@ -690,13 +788,21 @@ def render_business_eda() -> None:
                 use_container_width=True,
                 theme="streamlit",
             )
+            busiest_weekday = weekday_summary.loc[
+                weekday_summary["average_per_observed_day"].idxmax()
+            ]
+            quietest_weekday = weekday_summary.loc[
+                weekday_summary["average_per_observed_day"].idxmin()
+            ]
+            temporal_charts[1].caption(
+                f"{busiest_weekday['weekday']} muestra la mayor media "
+                f"({_format_eda_number(float(busiest_weekday['average_per_observed_day']))} unidades por "
+                f"fecha observada); {quietest_weekday['weekday']} la menor "
+                f"({_format_eda_number(float(quietest_weekday['average_per_observed_day']))}). "
+                "Es una diferencia observada en este periodo, no prueba que se repita siempre."
+            )
         if weekly_summary.empty and weekday_summary.empty:
             st.info("No hay fechas válidas para comparar semanas o días de la semana.")
-        st.caption(
-            "Las comparaciones usan únicamente días con registros y son descriptivas; "
-            "no demuestran estacionalidad ni explican las causas."
-        )
-
     with quality_tab:
         st.markdown("#### Calidad y cobertura del archivo completo")
         quality_columns = st.columns(4)
@@ -834,20 +940,103 @@ def render_advanced_eda() -> None:
         else:
             column = st.selectbox("Variable numérica", numeric_columns, key="univariate_column")
             st.dataframe(numeric_summary(data, column), use_container_width=True, hide_index=True)
+            values = (
+                pd.to_numeric(data[column], errors="coerce")
+                .replace([float("inf"), float("-inf")], float("nan"))
+                .dropna()
+            )
             left, right = st.columns(2)
             with left:
                 st.plotly_chart(px.histogram(data, x=column, nbins=30, title=f"Distribución de {column}"), use_container_width=True)
+                if not values.empty:
+                    mean_value = float(values.mean())
+                    median_value = float(values.median())
+                    skew = float(values.skew())
+                    if skew > 0.5:
+                        shape_reading = "La asimetría positiva indica una cola más extendida hacia valores altos."
+                    elif skew < -0.5:
+                        shape_reading = "La asimetría negativa indica una cola más extendida hacia valores bajos."
+                    else:
+                        shape_reading = "La distribución no muestra una asimetría marcada con esta medida."
+                    st.caption(
+                        f"De {len(values):,} valores válidos de {column}, la media es "
+                        f"{_format_eda_number(mean_value)} y la mediana "
+                        f"{_format_eda_number(median_value)}; el rango va de "
+                        f"{_format_eda_number(float(values.min()))} a "
+                        f"{_format_eda_number(float(values.max()))}. {shape_reading}"
+                    )
             with right:
                 st.plotly_chart(px.box(data, y=column, title=f"Valores atípicos de {column}"), use_container_width=True)
+                if not values.empty:
+                    first_quartile, third_quartile = values.quantile([0.25, 0.75])
+                    iqr = third_quartile - first_quartile
+                    outlier_count = int(
+                        (
+                            (values < first_quartile - 1.5 * iqr)
+                            | (values > third_quartile + 1.5 * iqr)
+                        ).sum()
+                    )
+                    st.caption(
+                        f"La mediana es {_format_eda_number(float(values.median()))}; la mitad central "
+                        f"de los registros está entre {_format_eda_number(float(first_quartile))} y "
+                        f"{_format_eda_number(float(third_quartile))}. La regla IQR marca {outlier_count} "
+                        "candidato(s) extremo(s), que conviene revisar y no son errores confirmados."
+                    )
     with relations_tab:
         correlation = correlation_matrix(data)
         if correlation.empty:
             st.info("Se necesitan al menos dos columnas numéricas para correlaciones.")
         else:
             st.plotly_chart(px.imshow(correlation, text_auto=".2f", title="Correlación entre variables numéricas"), use_container_width=True)
+            correlation_pairs = [
+                (float(correlation.loc[first, second]), first, second)
+                for index, first in enumerate(correlation.columns)
+                for second in correlation.columns[index + 1 :]
+                if pd.notna(correlation.loc[first, second])
+            ]
+            if correlation_pairs:
+                strongest_correlation = max(correlation_pairs, key=lambda pair: abs(pair[0]))
+                direction = "positiva" if strongest_correlation[0] > 0 else "negativa"
+                st.caption(
+                    f"La relación lineal más intensa es entre {strongest_correlation[1]} y "
+                    f"{strongest_correlation[2]} (r={strongest_correlation[0]:.2f}, {direction}). "
+                    f"Se calcula con {len(data[[strongest_correlation[1], strongest_correlation[2]]].dropna())} "
+                    "filas completas. "
+                    "Describe asociación en estas filas; no demuestra causalidad."
+                )
+            else:
+                st.caption("No hay pares de variables con correlación calculable en esta selección.")
             x_column = st.selectbox("Eje X", numeric_columns, key="scatter_x")
             y_column = st.selectbox("Eje Y", numeric_columns, index=min(1, len(numeric_columns) - 1), key="scatter_y")
             st.plotly_chart(px.scatter(data, x=x_column, y=y_column, title=f"{y_column} frente a {x_column}"), use_container_width=True)
+            scatter_values = (
+                data[[x_column, y_column]]
+                .apply(pd.to_numeric, errors="coerce")
+                .replace([float("inf"), float("-inf")], float("nan"))
+                .dropna()
+            )
+            if (
+                len(scatter_values) >= 2
+                and scatter_values[x_column].nunique() > 1
+                and scatter_values[y_column].nunique() > 1
+            ):
+                scatter_correlation = float(scatter_values[x_column].corr(scatter_values[y_column]))
+                if scatter_correlation > 0:
+                    scatter_direction = "tienden a aumentar juntos"
+                elif scatter_correlation < 0:
+                    scatter_direction = "uno tiende a bajar cuando el otro sube"
+                else:
+                    scatter_direction = "no muestran una relación lineal en esta selección"
+                st.caption(
+                    f"En {len(scatter_values):,} filas completas, la correlación entre {x_column} y "
+                    f"{y_column} es r={scatter_correlation:.2f}: {scatter_direction}. "
+                    "Es una asociación observada, no prueba que una variable cause la otra."
+                )
+            else:
+                st.caption(
+                    f"Solo hay {len(scatter_values):,} filas completas o variación insuficiente para "
+                    f"comparar {x_column} y {y_column}."
+                )
         valid_groups = [column for column in categorical_columns if data[column].nunique(dropna=True) == 2]
         if numeric_columns and valid_groups:
             numeric_column = st.selectbox("Variable numérica para Mann-Whitney", numeric_columns, key="mann_numeric")
@@ -879,6 +1068,27 @@ def render_advanced_eda() -> None:
                 px.line(series, x=date_column, y=value_column, color="anomaly", title="Evolución temporal y anomalías"),
                 use_container_width=True,
             )
+            if series.empty:
+                st.info("No hay fechas y valores numéricos válidos para resumir esta selección.")
+            else:
+                peak_period = series.loc[series[value_column].idxmax()]
+                lowest_period = series.loc[series[value_column].idxmin()]
+                anomaly_count = int(series["anomaly"].sum())
+                anomaly_reading = (
+                    f"Se marcaron {anomaly_count} fecha(s) como candidatas a anomalía (|z| ≥ 3)."
+                    if len(series) >= 14 and series[value_column].std() > 0
+                    else "No se evaluaron anomalías: la serie es demasiado corta o no presenta variación."
+                )
+                st.caption(
+                    f"La suma diaria de {value_column} fue, en promedio, "
+                    f"{_format_eda_number(float(series[value_column].mean()))}. En {len(series):,} fechas "
+                    f"observadas, el máximo fue "
+                    f"{_format_eda_number(float(peak_period[value_column]))} el "
+                    f"{_format_eda_date(peak_period[date_column])} y el mínimo "
+                    f"{_format_eda_number(float(lowest_period[value_column]))} el "
+                    f"{_format_eda_date(lowest_period[date_column])}. {anomaly_reading} "
+                    "Si aparece un punto marcado, merece revisión, pero no confirma un error."
+                )
             if len(series) >= 14:
                 weekday_names = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
                 weekday_profile = series.assign(day_of_week=series[date_column].dt.dayofweek)
@@ -897,8 +1107,14 @@ def render_advanced_eda() -> None:
                     ),
                     use_container_width=True,
                 )
+                busiest_day = weekday_profile.loc[weekday_profile[value_column].idxmax()]
+                quietest_day = weekday_profile.loc[weekday_profile[value_column].idxmin()]
                 st.caption(
-                    "Comparación exploratoria de los días observados; no demuestra estacionalidad ni explica sus causas."
+                    f"{busiest_day['day_name']} tiene la media más alta "
+                    f"({_format_eda_number(float(busiest_day[value_column]))} unidades) y "
+                    f"{quietest_day['day_name']} la más baja "
+                    f"({_format_eda_number(float(quietest_day[value_column]))}). "
+                    "Es un patrón observado en este periodo, no una prueba de que se repita."
                 )
             if len(series) >= 40:
                 middle = len(series) // 2
@@ -940,7 +1156,23 @@ def render_advanced_eda() -> None:
                         ),
                         use_container_width=True,
                     )
-                    st.caption("La segmentación describe grupos similares; no demuestra causalidad ni predice por sí sola.")
+                    cluster_points = segmented.dropna(subset=["segment"])
+                    cluster_profile = cluster_points.groupby("segment").agg(
+                        rows=("segment", "size"),
+                        first_mean=(cluster_columns[0], "mean"),
+                        second_mean=(cluster_columns[1], "mean"),
+                    )
+                    first_leader = cluster_profile["first_mean"].idxmax()
+                    second_leader = cluster_profile["second_mean"].idxmax()
+                    st.caption(
+                        f"El segmento {first_leader} presenta la media más alta de "
+                        f"{cluster_columns[0]} ({_format_eda_number(float(cluster_profile.loc[first_leader, 'first_mean']))}); "
+                        f"el segmento {second_leader}, la de {cluster_columns[1]} "
+                        f"({_format_eda_number(float(cluster_profile.loc[second_leader, 'second_mean']))}). "
+                        f"Los segmentos contienen entre {int(cluster_profile['rows'].min())} y "
+                        f"{int(cluster_profile['rows'].max())} filas completas. Son grupos exploratorios, "
+                        "no categorías reales ni una explicación causal."
+                    )
                 except ValueError as error:
                     st.warning(str(error))
 
