@@ -67,3 +67,30 @@ def test_report_includes_contract_validation_results() -> None:
     assert "2 de 3 filas aptas" in report
     assert "Campos obligatorios ausentes: quantity" in report
     assert "Conversiones o valores no válidos: date: 1" in report
+
+
+def test_report_withholds_lot_estimate_until_sales_period_is_confirmed() -> None:
+    dates = pd.date_range("2026-01-01", periods=30, freq="D")
+    sales = pd.DataFrame(
+        {"date": dates, "product_id": ["SKU-1"] * len(dates), "quantity": [2] * len(dates)}
+    )
+    lots = pd.DataFrame(
+        {
+            "lot_id": ["LOT-1"],
+            "product_id": ["SKU-1"],
+            "stock_available": [40],
+            "expiry_date": ["2026-02-03"],
+            "unit_cost": [4.0],
+        }
+    )
+    inventory = pd.DataFrame({"product_id": ["SKU-1"], "on_hand_units": [40]})
+
+    report = build_analysis_report(
+        {"sales": sales, "lots": lots, "inventory": inventory},
+        {},
+        {},
+    )
+
+    assert "No se ha calculado el indicador de riesgo por lote." in report
+    assert "Confirma que las ventas cubren todos los días" in report
+    assert "señales de inventario son provisionales" in report

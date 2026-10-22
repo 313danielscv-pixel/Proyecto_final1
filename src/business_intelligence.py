@@ -18,11 +18,15 @@ class ScenarioResult:
     margin_change: float
 
 
-def average_daily_demand(sales: pd.DataFrame) -> pd.DataFrame:
-    """Average units per observed product-day after combining same-day transactions.
+def average_daily_demand(
+    sales: pd.DataFrame,
+    assume_complete_period: bool = False,
+) -> pd.DataFrame:
+    """Average units per product-day, counting unrecorded dates as zero only when confirmed.
 
-    Dates without a transaction remain unknown rather than being imputed as zero because
-    uploaded extracts may omit days outside their reporting window.
+    Without a complete-period declaration, only dates containing a record contribute
+    to the mean. When complete, dates from a product's first record through the extract end
+    contribute, including days after its last sale.
     """
     required = {"date", "product_id", "quantity"}
     missing = required - set(sales.columns)
@@ -33,7 +37,19 @@ def average_daily_demand(sales: pd.DataFrame) -> pd.DataFrame:
     daily_sales["quantity"] = pd.to_numeric(daily_sales["quantity"], errors="coerce")
     daily_sales = daily_sales.dropna(subset=["date", "product_id", "quantity"])
     daily_sales = daily_sales.groupby(["product_id", "date"], as_index=False)["quantity"].sum()
-    return daily_sales.groupby("product_id", as_index=False)["quantity"].mean()
+    if not assume_complete_period:
+        return daily_sales.groupby("product_id", as_index=False)["quantity"].mean()
+
+    product_totals = daily_sales.groupby("product_id")["quantity"].sum()
+    product_starts = daily_sales.groupby("product_id")["date"].min()
+    extract_end = daily_sales["date"].max()
+    calendar_days = (extract_end - product_starts).dt.days + 1
+    return pd.DataFrame(
+        {
+            "product_id": product_totals.index,
+            "quantity": product_totals.to_numpy() / calendar_days.to_numpy(),
+        }
+    )
 
 
 def sales_eda(sales: pd.DataFrame) -> dict[str, pd.DataFrame | dict[str, int | float]]:
@@ -221,7 +237,9 @@ def inventory_intelligence(inventory: pd.DataFrame, daily_demand: pd.DataFrame) 
     demand = daily_demand.rename(columns={"quantity": "daily_demand"})
     result = inventory.merge(demand, on="product_id", how="left")
     result["daily_demand"] = result["daily_demand"].fillna(0)
-    result["coverage_days"] = result["on_hand_units"] / result["daily_demand"].replace(0, pd.NA)
+    result["coverage_days"] = result["on_hand_units"] / result["daily_demand"].where(
+        result["daily_demand"].ne(0)
+    )
     result["capital_exposed"] = result["on_hand_units"] * result.get("unit_cost", 0)
     if "unit_price" in result and "unit_cost" in result:
         result["unit_margin"] = result["unit_price"] - result["unit_cost"]
@@ -230,6 +248,7 @@ def inventory_intelligence(inventory: pd.DataFrame, daily_demand: pd.DataFrame) 
     result["risk"] = "equilibrado"
     result.loc[(result["coverage_days"].fillna(float("inf")) < lead_time) | (result["on_hand_units"] < minimum_stock), "risk"] = "rotura"
     result.loc[result["coverage_days"].fillna(0) > 45, "risk"] = "sobrestock"
+    result.loc[result["on_hand_units"].gt(0) & result["daily_demand"].le(0), "risk"] = "sobrestock"
     return result
 
 

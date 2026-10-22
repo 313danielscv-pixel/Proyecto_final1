@@ -23,7 +23,7 @@ Los ejemplos contienen datos ficticios de una sola fila. Son plantillas, no dato
 | Rentabilidad | Producto, coste y precio. | No se calcula margen ni escenarios económicos. |
 | Proveedores | Proveedor, producto y plazo de entrega. | No se calcula dependencia ni riesgo de reposición por proveedor. |
 | Perecederos | Fecha de caducidad, además de inventario. | El sistema mantiene el análisis general y oculta el riesgo de caducidad. |
-| Riesgo por lote | Lote, producto, stock, fecha límite, coste y al menos 30 días de ventas. | No estima el riesgo y explica que falta historial. |
+| Riesgo por lote | Lote, producto, stock, fecha límite, coste, confirmación de cobertura completa y al menos 30 días naturales desde el primer registro del producto hasta el final del extracto. | No estima el riesgo y explica que falta confirmación o historial. |
 
 ## Reglas de validación que se implementarán en la Fase 1
 

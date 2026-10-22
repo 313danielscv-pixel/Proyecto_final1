@@ -33,7 +33,7 @@ from src.platform_ui import (
 
 PAGE_DESCRIPTIONS = {
     "Inicio": "Una vista rápida de los datos disponibles y de los indicadores respaldados por ellos.",
-    "Datos y calidad": "Carga archivos, revisa los campos detectados y corrige problemas antes de analizarlos.",
+    "Datos y calidad": "Carga CSV o Excel, o conecta una base de datos de solo lectura; revisa los campos antes de analizar.",
     "Análisis exploratorio": "Explora demanda, distribuciones, relaciones y comportamiento temporal.",
     "Demanda": "Consulta la evaluación de una referencia de demanda sobre datos públicos reales.",
     "Inventario y rentabilidad": "Revisa cobertura, capital en inventario y señales de rotura o sobrestock.",
@@ -237,6 +237,9 @@ def _render_sidebar_chat(
                 business_data=business_data,
                 free_data=free_data,
                 data_sources=data_sources,
+                sales_period_complete=bool(
+                    st.session_state.get("sales_period_complete", st.session_state.get("demo_loaded", False))
+                ),
             )
             answer = ask_ollama(
                 question=question,
@@ -293,7 +296,7 @@ def main() -> None:
             st.success(f"{dataset_count} conjunto(s) cargado(s)")
         else:
             st.caption("Aún no has cargado datos.")
-        st.caption("Los archivos no se guardan automáticamente en el repositorio.")
+        st.caption("Los datos importados se mantienen en esta sesión; no se guardan en el repositorio.")
         st.divider()
         _render_sidebar_chat(
             business_data=business_data,

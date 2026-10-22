@@ -38,7 +38,7 @@ def infer_mapping(columns: list[str], contract: DatasetContract) -> dict[str, st
     return mapping
 
 
-def _parse_frame(raw: pd.DataFrame, contract: DatasetContract) -> tuple[pd.DataFrame, QualityReport]:
+def parse_frame(raw: pd.DataFrame, contract: DatasetContract) -> tuple[pd.DataFrame, QualityReport]:
     """Map and validate a parsed tabular upload while retaining invalid rows for reporting."""
     mapping = infer_mapping(list(raw.columns), contract)
     normalized = pd.DataFrame(index=raw.index)
@@ -99,15 +99,15 @@ def _parse_frame(raw: pd.DataFrame, contract: DatasetContract) -> tuple[pd.DataF
 
 def parse_csv(uploaded_bytes: bytes, contract: DatasetContract) -> tuple[pd.DataFrame, QualityReport]:
     """Parse, map and validate a CSV while retaining invalid rows for transparent reporting."""
-    return _parse_frame(pd.read_csv(BytesIO(uploaded_bytes)), contract)
+    return parse_frame(pd.read_csv(BytesIO(uploaded_bytes)), contract)
 
 
 def parse_tabular(uploaded_bytes: bytes, filename: str, contract: DatasetContract) -> tuple[pd.DataFrame, QualityReport]:
     """Parse a CSV or Excel upload through the same mapping and quality pipeline."""
     source = BytesIO(uploaded_bytes)
     if filename.lower().endswith(".xlsx"):
-        return _parse_frame(pd.read_excel(source), contract)
-    return _parse_frame(pd.read_csv(source), contract)
+        return parse_frame(pd.read_excel(source), contract)
+    return parse_frame(pd.read_csv(source), contract)
 
 
 def parse_free_tabular(uploaded_bytes: bytes, filename: str) -> pd.DataFrame:

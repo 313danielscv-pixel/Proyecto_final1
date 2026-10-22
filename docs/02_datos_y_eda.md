@@ -26,9 +26,9 @@ Para calcular demanda media por producto y día:
 
 1. Se normaliza la fecha a día.
 2. Se suman las transacciones del mismo producto en el mismo día.
-3. Se calcula la media de los días observados.
+3. Si el periodo completo está confirmado, se divide el total de unidades por los días naturales desde la primera fecha del producto hasta la última fecha del extracto.
 
-Los días sin transacciones no se rellenan automáticamente con cero: un extracto puede estar incompleto. La métrica es una media descriptiva de días observados, no una previsión.
+La app solo cuenta como cero las fechas sin filas dentro de ese periodo si la persona confirma que el extracto cubre todos los días. Sin confirmación, la media usa únicamente fechas con registro y las señales de inventario se muestran como provisionales; el riesgo por lote no se calcula. Las fechas anteriores al primer registro del producto no se imputan. Esta métrica es descriptiva, no una previsión.
 
 ## EDA empresarial de ventas
 
@@ -41,7 +41,7 @@ El **Resumen empresarial** permite filtrar por periodo y producto y organiza el 
 - **Calidad:** fechas y cantidades inválidas, productos vacíos, duplicados, nulos, cobertura de fechas y perfil de columnas.
 - **Hallazgos:** observaciones y cálculos basados en los filtros activos, con limitaciones y asuntos pendientes de validar.
 
-Las medias móviles se calculan sobre las fechas con registros dentro de cada ventana; las fechas ausentes se mantienen desconocidas, no se convierten en cero. El análisis de demanda excluye temporalmente filas sin fecha o producto válido, con cantidades no numéricas o negativas; estas filas permanecen en el archivo cargado y se contabilizan en Calidad. Las filas duplicadas se informan, pero no se eliminan. Los atípicos IQR son candidatos para revisar, no errores confirmados. La comparación por semana o día de la semana no demuestra estacionalidad.
+Las medias móviles del EDA se calculan sobre las fechas con registros dentro de cada ventana; las fechas ausentes se mantienen desconocidas, no se convierten en cero. Esta regla de visualización descriptiva es distinta de la demanda diaria usada por inventario y lotes. El análisis de demanda del EDA excluye temporalmente filas sin fecha o producto válido, con cantidades no numéricas o negativas; estas filas permanecen en el archivo cargado y se contabilizan en Calidad. Las filas duplicadas se informan, pero no se eliminan. Los atípicos IQR son candidatos para revisar, no errores confirmados. La comparación por semana o día de la semana no demuestra estacionalidad.
 
 ## EDA reutilizable
 
@@ -60,9 +60,9 @@ El perfil por día de semana es descriptivo, no una prueba de estacionalidad. Lo
 
 ## Riesgo por lote empresarial
 
-Este módulo es opcional y requiere ventas con fecha, producto y unidades, además de lotes con identificador, producto, stock disponible, fecha límite y coste unitario. Exige al menos 30 días distintos de ventas por producto.
+Este módulo es opcional y requiere ventas con fecha, producto y unidades, además de lotes con identificador, producto, stock disponible, fecha límite y coste unitario. Exige confirmar la cobertura del periodo y al menos 30 días naturales desde el primer registro de cada producto hasta el final del extracto; no exige 30 fechas con ventas.
 
-La lógica compara el stock del lote con las ventas medias por día observado hasta su fecha límite. El indicador `estimated_unsold_stock_ratio` es la proporción estimada de stock que no se vendería según esa aproximación. No es una probabilidad calibrada ni una merma confirmada. Si falta historial suficiente, la app no presenta una estimación para ese producto.
+La lógica compara el stock del lote con las ventas medias por día natural hasta su fecha límite y requiere confirmar que el extracto cubre todos los días. Por ejemplo, vender 10 unidades cada cinco días en un periodo completo equivale aproximadamente a 2 unidades al día, no a 10. El indicador `estimated_unsold_stock_ratio` es la proporción estimada de stock que no se vendería según esa aproximación. No es una probabilidad calibrada ni una merma confirmada. Si no se confirma la cobertura o falta historial suficiente, la app no presenta una estimación para ese producto.
 
 ## Transparencia de la demo
 

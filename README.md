@@ -17,9 +17,9 @@ El caso FreshMarket se conserva como demostración especializada de perecederos.
 - Chat contextual sobre ResQ y los datos de sesión, ejecutado exclusivamente mediante Ollama local.
 - EDA avanzado reutilizable: perfilado, nulos, duplicados, valores negativos, distribuciones, atípicos, correlaciones, anomalías temporales, bootstrap, deriva y segmentación exploratoria.
 - Cobertura de inventario, riesgo de rotura, sobrestock y capital expuesto.
-- Riesgo por lote opcional para empresas con stock por lote y fecha límite, expresado como proporción estimada de stock sin vender, no como probabilidad calibrada.
+- Riesgo por lote opcional para empresas con stock por lote y fecha límite, con demanda media por día natural y proporción estimada de stock sin vender.
 - Simulador de escenarios de precio, volumen y coste de almacenamiento.
-- Previsión de demanda evaluada con datos reales de FreshRetailNet-50K.
+- Comparación de una media móvil de 7 días con una referencia estacional sobre datos reales de FreshRetailNet-50K.
 - Caso vertical FreshMarket: riesgo de merma por lote, descuentos y donación.
 
 ## Contratos de datos
@@ -57,6 +57,23 @@ La app usa una navegación lateral y una portada con indicadores condicionales: 
 
 El EDA avanzado solo activa cada técnica si la muestra y los tipos de datos la justifican. El bootstrap exige 10 observaciones y asume independencia; no debe usarse como incertidumbre temporal cuando existe autocorrelación. La deriva requiere 20 observaciones en cada periodo; la segmentación exige dos variables numéricas y una muestra suficiente. Las fechas se agregan a día y los valores extremos se incluyen en el PSI. Sus resultados describen patrones y limitaciones: no demuestran causalidad ni sustituyen un modelo predictivo evaluado.
 
+Para la demanda de inventario y lotes, ResQ divide las unidades por los días naturales desde la primera fecha registrada de cada producto hasta el final del extracto, solo cuando se confirma que este cubre todos los días del periodo. Sin esa confirmación, la media usa fechas con registro y el módulo de riesgo por lote no calcula estimaciones. Un producto con stock positivo y demanda registrada igual a cero se marca como sobrestock.
+
+### Conectar una base de datos
+
+En **Datos y calidad** puedes elegir **Base de datos** para conectar MySQL o PostgreSQL, listar tablas y vistas, previsualizar una tabla y cargarla en la sesión para el análisis correspondiente. **Actualizar datos** vuelve a consultar la fuente; ResQ no escribe cambios en la base conectada. El conector solo construye consultas de lectura y el usuario de la base debe tener permisos `SELECT` únicamente.
+
+Por seguridad, el servidor solo acepta por defecto conexiones a `localhost`, `127.0.0.1` y `::1`. Para autorizar otro host de confianza, configura `RESQ_DB_ALLOWED_HOSTS` en el entorno del proceso Streamlit. Las credenciales se mantienen solo en memoria durante la sesión; no las añadas al repositorio. El conector limita las importaciones a 100.000 filas y rechaza una tabla que supere el límite elegido.
+
+Para iniciar la base PostgreSQL sintética de demostración, copia `.env.example` a `.env`, cambia las dos contraseñas locales y ejecuta:
+
+```powershell
+docker compose up -d
+streamlit run app.py
+```
+
+En la app, conecta con PostgreSQL en `localhost:5433`, base `resq_demo`, usuario `resq_reader` y la contraseña de solo lectura configurada en `.env`. La base solo contiene filas sintéticas y el puerto se publica en loopback. El archivo `.env` está excluido de Git.
+
 ### Asistente local de ResQ
 
 El panel lateral **Chat sobre ResQ** responde preguntas sobre la aplicación, su metodología documentada y los datos cargados en la sesión. Usa Ollama en `localhost`; el código rechaza hosts remotos para que el contexto no salga del equipo. El modelo debe estar instalado localmente:
@@ -66,7 +83,7 @@ ollama serve
 ollama pull qwen3.6:latest
 ```
 
-Si Ollama ya está ejecutándose, no hace falta iniciar otro servicio. La app detecta los modelos al pulsar **Conectar con Ollama**. Puede seleccionarse otro modelo con `OLLAMA_MODEL`. El contexto incluye todas las filas solo para conjuntos de hasta 20 filas y 15 columnas, con un máximo de 2.500 caracteres; para tablas mayores usa perfiles y una muestra de hasta 8 filas. Por ello, ante preguntas que requieran recorrer todos los registros de una tabla grande, el asistente debe indicar la limitación en lugar de presentar una respuesta como exacta.
+Si Ollama ya está ejecutándose, no hace falta iniciar otro servicio. La app detecta los modelos al pulsar **Conectar con Ollama**. Puede seleccionarse otro modelo con `OLLAMA_MODEL`. El contexto incluye el README y todos los documentos Markdown disponibles en `docs/`. Para tablas pequeñas incluye las filas completas (hasta 20 filas, 15 columnas y 2.500 caracteres); para tablas grandes usa perfiles y una muestra de hasta 8 filas. Si hay ventas y lotes, también aporta el cálculo exacto del riesgo por lote para hasta 20 lotes prioritarios y sus agregados, sin depender de la muestra de ventas.
 
 ### Demostración lista para ejecutar
 

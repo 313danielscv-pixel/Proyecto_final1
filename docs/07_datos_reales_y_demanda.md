@@ -13,7 +13,12 @@ Los datos contienen ventas de productos perecederos, tienda, producto, descuento
 
 ## Preparación
 
-`src.real_demand` selecciona de manera determinista las primeras 100 combinaciones ordenadas de tienda y producto. Usa las observaciones anteriores de entrenamiento para producir una previsión de referencia sobre los siete días posteriores de evaluación.
+`src.real_demand` selecciona de manera determinista hasta 100 combinaciones de tienda y producto con historial suficiente. Compara dos métodos sobre los mismos siete días posteriores al entrenamiento:
+
+1. **Referencia estacional ingenua:** predice la venta observada siete días antes.
+2. **Media móvil de 7 días:** promedia los últimos siete días de entrenamiento y mantiene esa estimación constante durante el horizonte de siete días.
+
+Ambos métodos se comparan en una separación temporal; las ventas del periodo de evaluación no se usan para calcular la media móvil.
 
 El conjunto bruto no se incluye en el repositorio por su tamaño. La plataforma conserva los resultados derivados y documenta cómo regenerarlos:
 
@@ -25,15 +30,17 @@ Antes de ejecutar el comando deben descargarse las particiones oficiales en `dat
 
 ## Evaluación
 
-Se usa una referencia estacional ingenua: la predicción de cada día es la venta observada siete días antes del mismo producto-tienda. Es una línea base deliberadamente simple, no un modelo de producción.
+La comparación usa 100 series de tienda-producto y el mismo conjunto de 700 observaciones de evaluación:
 
 | Métrica | Resultado |
 |---|---:|
 | Observaciones de evaluación | 700 |
-| MAE | 0,5109 |
-| RMSE | 0,8352 |
+| MAE — referencia estacional | 0,5109 |
+| RMSE — referencia estacional | 0,8352 |
+| MAE — media móvil de 7 días | 0,4813 |
+| RMSE — media móvil de 7 días | 0,7847 |
 
-La evaluación es temporal: el entrenamiento termina antes de las fechas de evaluación. No se usan ventas futuras para generar la previsión.
+En este conjunto la media móvil obtiene menor MAE y RMSE que la referencia estacional. La evaluación es temporal: el entrenamiento termina antes de las fechas de evaluación. Estos resultados describen este subconjunto público y no garantizan el rendimiento en otra tienda o empresa.
 
 ## Limitaciones
 

@@ -56,6 +56,28 @@ def test_context_includes_project_docs_source_and_complete_small_dataset(tmp_pat
     assert "conjunto completo" in context
 
 
+def test_context_includes_complete_readme_and_all_available_methodology_docs(tmp_path) -> None:
+    (tmp_path / "README.md").write_text(
+        "Inicio del README.\n" + ("contenido largo.\n" * 700) + "MARCADOR_FINAL_README",
+        encoding="utf-8",
+    )
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    doc_paths = [
+        docs / f"{number:02d}_metodologia.md"
+        for number in (1, 2, 3, 5, 6, 7)
+    ]
+    for number, path in enumerate(doc_paths, start=1):
+        path.write_text(f"METODOLOGIA_DOC_{number}", encoding="utf-8")
+
+    context = build_assistant_context({}, {}, {}, project_root=tmp_path)
+
+    assert "MARCADOR_FINAL_README" in context
+    for path in doc_paths:
+        assert path.read_text(encoding="utf-8") in context
+    assert "Documentación recortada" not in context
+
+
 def test_large_dataset_context_is_marked_as_a_sample(tmp_path) -> None:
     data = pd.DataFrame({"record_id": [f"row-{index}" for index in range(101)]})
 
@@ -65,6 +87,80 @@ def test_large_dataset_context_is_marked_as_a_sample(tmp_path) -> None:
     assert "row-7" in context
     assert "row-14" not in context
     assert "row-100" not in context
+
+
+def test_context_keeps_lot_records_after_large_dataset_summaries() -> None:
+    wide_data = pd.DataFrame(
+        {f"measure_{column}": range(100) for column in range(40)}
+    )
+    lots = pd.DataFrame(
+        {
+            "lot_id": [f"LOT-{index:02d}" for index in range(1, 9)],
+            "product_id": [f"SKU-{index:02d}" for index in range(1, 9)],
+            "stock_available": [40] * 8,
+            "expiry_date": ["2026-02-03"] * 8,
+            "unit_cost": [4.0] * 8,
+        }
+    )
+
+    context = build_assistant_context(
+        {"sales": wide_data, "lots": lots},
+        {"wide-1": wide_data, "wide-2": wide_data},
+        {},
+    )
+
+    assert "LOT-08" in context
+    assert "Contexto de datos recortado" not in context
+
+
+def test_context_includes_calculated_lot_risk_not_only_raw_rows() -> None:
+    dates = pd.date_range("2026-01-01", periods=30, freq="D")
+    sales = pd.DataFrame(
+        {"date": dates, "product_id": ["SKU-1"] * len(dates), "quantity": [1] * len(dates)}
+    )
+    lots = pd.DataFrame(
+        {
+            "lot_id": ["LOT-1"],
+            "product_id": ["SKU-1"],
+            "stock_available": [40],
+            "expiry_date": ["2026-02-03"],
+            "unit_cost": [4.0],
+        }
+    )
+
+    context = build_assistant_context(
+        {"sales": sales, "lots": lots},
+        {},
+        {},
+        sales_period_complete=True,
+    )
+
+    assert "Riesgo por lote calculado por la aplicación" in context
+    assert '"lot_id":"LOT-1"' in context
+    assert '"risk_level":"Crítico"' in context
+    assert "Liquidar o reasignar con prioridad" in context
+
+
+def test_context_withholds_lot_risk_until_sales_period_is_confirmed() -> None:
+    dates = pd.date_range("2026-01-01", periods=30, freq="D")
+    sales = pd.DataFrame(
+        {"date": dates, "product_id": ["SKU-1"] * len(dates), "quantity": [1] * len(dates)}
+    )
+    lots = pd.DataFrame(
+        {
+            "lot_id": ["LOT-1"],
+            "product_id": ["SKU-1"],
+            "stock_available": [40],
+            "expiry_date": ["2026-02-03"],
+            "unit_cost": [4.0],
+        }
+    )
+
+    context = build_assistant_context({"sales": sales, "lots": lots}, {}, {})
+
+    assert "Integridad del periodo de ventas: no confirmada" in context
+    assert "Confirma que las ventas cubren todos los días" in context
+    assert '"risk_level"' not in context
 
 
 def test_list_ollama_models_returns_installed_chat_and_embedding_models(monkeypatch) -> None:

@@ -1,0 +1,21 @@
+services:
+  postgres-demo:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: resq_demo
+      POSTGRES_USER: resq_admin
+      POSTGRES_PASSWORD: ${RESQ_DEMO_POSTGRES_ADMIN_PASSWORD:?Set RESQ_DEMO_POSTGRES_ADMIN_PASSWORD in .env}
+      RESQ_DEMO_POSTGRES_READONLY_PASSWORD: ${RESQ_DEMO_POSTGRES_READONLY_PASSWORD:?Set RESQ_DEMO_POSTGRES_READONLY_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - resq_demo_postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-resq-demo.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  resq_demo_postgres_data:

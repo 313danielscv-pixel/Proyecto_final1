@@ -42,6 +42,7 @@ def build_analysis_report(
     source_labels: Mapping[str, str],
     scenario: Mapping[str, object] | None = None,
     ingestion_reports: Mapping[str, Mapping[str, object]] | None = None,
+    sales_period_complete: bool = False,
 ) -> str:
     """Create a Markdown report with quality, available business results and limitations."""
     datasets = {**business_data, **free_eda_data}
@@ -161,7 +162,10 @@ def build_analysis_report(
         and {"date", "product_id", "quantity"}.issubset(sales.columns)
     ):
         enriched_inventory = attach_cost_reference(inventory, costs)
-        intelligence = inventory_intelligence(enriched_inventory, average_daily_demand(sales))
+        intelligence = inventory_intelligence(
+            enriched_inventory,
+            average_daily_demand(sales, assume_complete_period=sales_period_complete),
+        )
         lines.extend(["## Inventario", ""])
         if "unit_cost" in intelligence:
             capital = pd.to_numeric(intelligence["capital_exposed"], errors="coerce").sum()
@@ -177,29 +181,40 @@ def build_analysis_report(
                 f"- Productos con señal de rotura: {intelligence['risk'].eq('rotura').sum():,}.",
                 f"- Productos con señal de sobrestock: {intelligence['risk'].eq('sobrestock').sum():,}.",
                 "",
-                "La demanda usa la media por producto y día observado. Los días sin ventas no se imputan como cero.",
+                (
+                    "Periodo de ventas confirmado completo: los días sin filas desde el primer registro de cada "
+                    "producto hasta el final del extracto cuentan como cero."
+                    if sales_period_complete
+                    else "Periodo de ventas no confirmado completo: la media usa solo fechas con registro; "
+                    "las señales de inventario son provisionales."
+                ),
                 "",
             ]
         )
     lots = business_data.get(LOTS_CONTRACT.key)
     lot_columns = {"lot_id", "product_id", "stock_available", "expiry_date", "unit_cost"}
     if lots is not None and sales is not None and lot_columns.issubset(lots.columns):
-        risks, warnings = build_lot_risk(lots, sales)
+        risks, warnings = build_lot_risk(
+            lots,
+            sales,
+            assume_complete_period=sales_period_complete,
+        )
         lines.extend(["## Riesgo por lote", ""])
         if risks.empty:
-            lines.append("- No hay lotes con historial suficiente para estimar el indicador.")
+            lines.append("- No se ha calculado el indicador de riesgo por lote.")
         else:
             valid_risks = risks.dropna(subset=["estimated_unsold_stock_ratio"])
             if valid_risks.empty:
                 lines.append("- No hay lotes con historial suficiente para estimar el indicador.")
             else:
-                priority_count = int(valid_risks["estimated_unsold_stock_ratio"].ge(0.60).sum())
+                priority_count = int(valid_risks["risk_level"].isin(["Alto", "Crítico"]).sum())
                 lines.extend(
                     [
                         f"- Lotes analizados: {len(valid_risks):,}.",
                         f"- Lotes prioritarios según el umbral exploratorio: {priority_count:,}.",
                         f"- Coste expuesto estimado: {valid_risks['cost_exposed'].sum():,.2f} €.",
                         "- El indicador es una proporción estimada de stock no vendido, no una probabilidad calibrada ni una merma confirmada.",
+                        "- El extracto de ventas se ha confirmado completo; los días sin filas desde el primer registro de cada producto hasta el final del extracto cuentan como cero.",
                     ]
                 )
         if warnings:

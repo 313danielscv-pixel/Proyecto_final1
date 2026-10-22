@@ -13,6 +13,6 @@
   "scenario_fields": {
     "inventory": "Stock, lead time and safety stock are demonstration assumptions.",
     "costs": "Unit cost, price and holding cost are demonstration assumptions.",
-    "lots": "Lot stock and expiry date are demonstration assumptions."
+    "lots": "Lot stock cover and expiry dates vary by lot to demonstrate distinct risk levels."
   }
 }

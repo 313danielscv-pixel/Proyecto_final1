@@ -7,18 +7,31 @@ from pathlib import Path
 
 import pandas as pd
 
+from src.business_intelligence import average_daily_demand
 from src.data_pipeline import ROOT
 from src.real_demand import TRAIN_PATH
 
 
 DEMO_DIRECTORY = ROOT / "data" / "demo"
 DEMO_METADATA = DEMO_DIRECTORY / "README_DEMO.json"
+LOT_SCENARIOS = ((4, 4), (4, 6), (4, 10), (4, 20), (4, 40), (1, 4), (7, 10), (2, 50))
 
 
-def build_demo_bundle() -> dict[str, Path]:
-    """Create company-shaped demo CSVs from several real products at one store."""
+def build_demo_bundle(
+    train_data: pd.DataFrame | None = None,
+    output_directory: Path = DEMO_DIRECTORY,
+) -> dict[str, Path]:
+    """Create company-shaped demo CSVs from real or explicitly supplied training rows."""
     columns = ["store_id", "product_id", "dt", "sale_amount", "discount", "holiday_flag"]
-    train = pd.read_parquet(TRAIN_PATH, columns=columns)
+    train = (
+        pd.read_parquet(TRAIN_PATH, columns=columns)
+        if train_data is None
+        else train_data.copy()
+    )
+    missing_columns = set(columns) - set(train.columns)
+    if missing_columns:
+        raise ValueError(f"Faltan columnas para generar la demo: {', '.join(sorted(missing_columns))}.")
+    train = train.loc[:, columns].copy()
     train["dt"] = pd.to_datetime(train["dt"])
     product_history = train.groupby(["store_id", "product_id"], as_index=False).agg(
         observed_days=("dt", "nunique"),
@@ -45,7 +58,7 @@ def build_demo_bundle() -> dict[str, Path]:
     }
     series["product_id"] = series["product_id"].map(product_labels)
     store_id = f"FRN-STORE-{int(selected_store_id)}"
-    DEMO_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    output_directory.mkdir(parents=True, exist_ok=True)
 
     sales = pd.DataFrame(
         {
@@ -58,8 +71,14 @@ def build_demo_bundle() -> dict[str, Path]:
         }
     )
     products = sales.groupby("product_id", as_index=False).agg(
-        average_daily_demand=("quantity", "mean"),
         latest_date=("date", "max"),
+    )
+    products = products.merge(
+        average_daily_demand(sales, assume_complete_period=True).rename(
+            columns={"quantity": "average_daily_demand"}
+        ),
+        on="product_id",
+        how="left",
     )
     inventory = pd.DataFrame(
         {
@@ -82,30 +101,35 @@ def build_demo_bundle() -> dict[str, Path]:
             "holding_cost_per_unit_day": 0.03,
         }
     )
+    scenarios = pd.DataFrame(LOT_SCENARIOS[: len(products)], columns=["expiry_days", "stock_cover_days"])
     expiry_dates = (
-        pd.to_datetime(products["latest_date"]) + pd.Timedelta(days=4)
+        pd.to_datetime(products["latest_date"]).reset_index(drop=True)
+        + pd.to_timedelta(scenarios["expiry_days"], unit="D")
     ).dt.date.astype(str)
     lots = pd.DataFrame(
         {
             "lot_id": [f"FRN-DEMO-LOT-{index:03}" for index in range(1, len(products) + 1)],
-            "product_id": products["product_id"],
-            "stock_available": (products["average_daily_demand"] * 10).round(2).clip(lower=1),
+            "product_id": products["product_id"].reset_index(drop=True),
+            "stock_available": (
+                products["average_daily_demand"].reset_index(drop=True)
+                * scenarios["stock_cover_days"]
+            ).round(2).clip(lower=1),
             "expiry_date": expiry_dates,
             "unit_cost": 2.40,
             "store_id": store_id,
         }
     )
     paths = {
-        "sales": DEMO_DIRECTORY / "ventas_demanda_real_demo.csv",
-        "inventory": DEMO_DIRECTORY / "inventario_escenario_demo.csv",
-        "costs": DEMO_DIRECTORY / "costes_escenario_demo.csv",
-        "lots": DEMO_DIRECTORY / "lotes_escenario_demo.csv",
+        "sales": output_directory / "ventas_demanda_real_demo.csv",
+        "inventory": output_directory / "inventario_escenario_demo.csv",
+        "costs": output_directory / "costes_escenario_demo.csv",
+        "lots": output_directory / "lotes_escenario_demo.csv",
     }
     sales.to_csv(paths["sales"], index=False)
     inventory.to_csv(paths["inventory"], index=False)
     costs.to_csv(paths["costs"], index=False)
     lots.to_csv(paths["lots"], index=False)
-    DEMO_METADATA.write_text(
+    (output_directory / DEMO_METADATA.name).write_text(
         json.dumps(
             {
                 "real_source": "FreshRetailNet-50K by Dingdong Inc., CC BY 4.0",
@@ -116,7 +140,7 @@ def build_demo_bundle() -> dict[str, Path]:
                 "scenario_fields": {
                     "inventory": "Stock, lead time and safety stock are demonstration assumptions.",
                     "costs": "Unit cost, price and holding cost are demonstration assumptions.",
-                    "lots": "Lot stock and expiry date are demonstration assumptions.",
+                    "lots": "Lot stock cover and expiry dates vary by lot to demonstrate distinct risk levels.",
                 },
             },
             ensure_ascii=False,

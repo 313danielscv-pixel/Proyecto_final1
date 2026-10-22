@@ -2,8 +2,20 @@
   "dataset": "FreshRetailNet-50K",
   "license": "CC BY 4.0",
   "source_url": "https://huggingface.co/datasets/Dingdong-Inc/FreshRetailNet-50K",
-  "evaluation_method": "Seasonal naive: sales from seven days earlier; 100 deterministic store-product series.",
+  "evaluation_method": "Holdout temporal de 7 días: referencia estacional (venta de hace 7 días) frente a media de los últimos 7 días de entrenamiento, constante durante el horizonte.",
   "evaluation_rows": 700,
+  "series_evaluated": 100,
+  "models": {
+    "seasonal_naive": {
+      "mae": 0.5109,
+      "rmse": 0.8352
+    },
+    "moving_average_7d": {
+      "mae": 0.4813,
+      "rmse": 0.7847
+    }
+  },
   "mae": 0.5109,
-  "rmse": 0.8352
+  "rmse": 0.8352,
+  "best_model_by_mae": "moving_average_7d"
 }

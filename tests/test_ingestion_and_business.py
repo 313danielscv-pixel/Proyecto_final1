@@ -9,7 +9,7 @@ from src.business_intelligence import (
     scenario_sensitivity,
 )
 from src.contracts import INVENTORY_CONTRACT, SALES_CONTRACT
-from src.ingestion import parse_csv, parse_free_tabular
+from src.ingestion import parse_csv, parse_frame, parse_free_tabular
 
 
 def test_sales_aliases_are_mapped_and_parsed() -> None:
@@ -36,6 +36,17 @@ def test_free_eda_upload_preserves_uncontracted_columns() -> None:
     assert data.columns.tolist() == ["fecha", "beneficio", "temperatura", "comentario"]
 
 
+def test_database_frame_uses_the_same_contract_mapping_as_file_uploads() -> None:
+    data, report = parse_frame(
+        pd.DataFrame({"fecha": ["2026-01-01"], "sku": ["SKU-1"], "unidades": [4]}),
+        SALES_CONTRACT,
+    )
+
+    assert data.columns.tolist() == ["date", "product_id", "quantity"]
+    assert report.missing_required == ()
+    assert report.valid_rows == 1
+
+
 def test_daily_demand_combines_transactions_from_the_same_product_day() -> None:
     sales = pd.DataFrame(
         {
@@ -48,6 +59,34 @@ def test_daily_demand_combines_transactions_from_the_same_product_day() -> None:
     demand = average_daily_demand(sales)
 
     assert demand.loc[0, "quantity"] == 6
+
+
+def test_daily_demand_counts_missing_days_as_zero_inside_the_observed_period() -> None:
+    sales = pd.DataFrame(
+        {
+            "date": [
+                "2026-01-01",
+                "2026-01-06",
+                "2026-01-11",
+                "2026-01-16",
+                "2026-01-21",
+                "2026-01-26",
+                "2026-01-30",
+            ],
+            "product_id": ["SKU-1"] * 6 + ["SKU-2"],
+            "quantity": [10, 10, 10, 10, 10, 10, 1],
+        }
+    )
+
+    demand = average_daily_demand(sales, assume_complete_period=True)
+
+    assert demand.loc[0, "quantity"] == 2
+    demand_without_zeros = average_daily_demand(sales)
+    sku_one_demand = demand_without_zeros.loc[
+        demand_without_zeros["product_id"].eq("SKU-1"),
+        "quantity",
+    ].iloc[0]
+    assert sku_one_demand == 10
 
 
 def test_sales_eda_preserves_missing_days_and_reports_invalid_rows() -> None:
@@ -91,14 +130,22 @@ def test_sales_eda_preserves_missing_days_and_reports_invalid_rows() -> None:
 
 def test_inventory_risk_uses_observed_stock_and_demand() -> None:
     inventory = pd.DataFrame(
-        {"product_id": ["SKU-1", "SKU-2"], "on_hand_units": [4, 500], "reorder_lead_days": [5, 2]}
+        {
+            "product_id": ["SKU-1", "SKU-2", "SKU-3", "SKU-4"],
+            "on_hand_units": [4, 500, 500, 500],
+            "reorder_lead_days": [5, 2, 2, 2],
+        }
     )
-    demand = pd.DataFrame({"product_id": ["SKU-1", "SKU-2"], "quantity": [2.0, 5.0]})
+    demand = pd.DataFrame(
+        {"product_id": ["SKU-1", "SKU-2", "SKU-4"], "quantity": [2.0, 5.0, 0.0]}
+    )
 
     result = inventory_intelligence(inventory, demand)
 
     assert result.loc[0, "risk"] == "rotura"
     assert result.loc[1, "risk"] == "sobrestock"
+    assert result.loc[2, "risk"] == "sobrestock"
+    assert result.loc[3, "risk"] == "sobrestock"
 
 
 def test_cost_reference_fills_missing_inventory_cost_without_overwriting_values() -> None:

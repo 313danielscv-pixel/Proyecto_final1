@@ -2,13 +2,24 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+from src.database_connector import (
+    MAX_IMPORT_ROWS,
+    DatabaseConfig,
+    DatabaseConnectionError,
+    create_database_engine,
+    list_tables,
+    read_table,
+    verify_connection,
+)
 from src.business_intelligence import (
     average_daily_demand,
     attach_cost_reference,
@@ -30,7 +41,7 @@ from src.advanced_eda import (
 )
 from src.contracts import DATASET_CONTRACTS, COSTS_CONTRACT, INVENTORY_CONTRACT, LOTS_CONTRACT, SALES_CONTRACT
 from src.demo_data import DEMO_DIRECTORY
-from src.ingestion import parse_free_tabular, parse_tabular
+from src.ingestion import parse_frame, parse_free_tabular, parse_tabular
 from src.lot_risk import build_lot_risk
 from src.real_demand import FORECAST_PATH, METRICS_PATH, SOURCE_URL
 from src.reporting import build_analysis_report
@@ -57,6 +68,8 @@ def load_demo_data() -> bool:
         "costs": "Supuesto sintético de la demostración",
         "lots": "Supuesto sintético de la demostración",
     }
+    st.session_state["sales_period_complete"] = True
+    st.session_state["sales_period_source_signature"] = "demo"
     ingestion_reports = dict(st.session_state.get("ingestion_reports", {}))
     for dataset_key in demo_files:
         ingestion_reports.pop(dataset_key, None)
@@ -180,15 +193,21 @@ def render_home() -> None:
         and required_lot_columns.issubset(lots.columns)
         and {"date", "product_id", "quantity"}.issubset(sales.columns)
     ):
-        risk, _ = build_lot_risk(lots, sales)
+        risk, warnings = build_lot_risk(
+            lots,
+            sales,
+            assume_complete_period=_sales_period_complete(),
+        )
         if not risk.empty and "estimated_unsold_stock_ratio" in risk:
             valid_risk = risk.dropna(subset=["estimated_unsold_stock_ratio"])
-            priority_count = int(valid_risk["estimated_unsold_stock_ratio"].ge(0.60).sum())
+            priority_count = int(valid_risk["risk_level"].isin(["Alto", "Crítico"]).sum())
             metrics[3].metric("Alertas lote", f"{priority_count:,}")
             metrics[3].caption(f"De {len(valid_risk):,} lotes con historial suficiente.")
         else:
             metrics[3].metric("Alertas lote", "—")
-            metrics[3].caption("No hay historial suficiente para estimar el riesgo.")
+            metrics[3].caption(
+                warnings[0] if warnings else "No hay historial suficiente para estimar el riesgo."
+            )
     else:
         metrics[3].metric("Alertas lote", "—")
         metrics[3].caption("Carga ventas y datos de lotes para activarlo.")
@@ -262,6 +281,7 @@ def render_report() -> None:
         {name: _source_label(name) for name in {**business_data, **free_data}},
         st.session_state.get("scenario_report"),
         st.session_state.get("ingestion_reports", {}),
+        sales_period_complete=_sales_period_complete(),
     )
     st.write("Resumen de calidad, resultados disponibles, procedencia, supuestos y límites. No incluye filas originales.")
     st.download_button(
@@ -292,10 +312,11 @@ def render_methodology() -> None:
         - **EDA empresarial y avanzado:** describe demanda y distribuciones, compara grupos,
           muestra relaciones y patrones temporales, y permite explorar anomalías, deriva,
           intervalos bootstrap y segmentos.
-        - **Inventario y margen:** calcula demanda media por producto y día observado, cobertura,
-          capital expuesto y señales de rotura o sobrestock.
+        - **Inventario y margen:** calcula demanda media por producto y día natural, cobertura,
+          capital expuesto y señales de rotura o sobrestock; la imputación de días sin ventas requiere
+          confirmar que el periodo está completo.
         - **Riesgo por lote:** estima qué proporción del stock podría quedar sin vender antes de la
-          fecha límite usando el historial cargado; exige al menos 30 días de ventas por producto.
+          fecha límite usando el historial cargado; exige confirmar la cobertura y disponer de 30 días naturales.
         - **Escenarios y sensibilidad:** compara el margen bajo supuestos explícitos de precio,
           demanda y almacenamiento. La matriz muestra cómo cambia el resultado al variar los dos
           primeros supuestos.
@@ -318,6 +339,21 @@ def render_methodology() -> None:
 
 
 def render_uploads() -> None:
+    """Choose between file uploads and a read-only database source."""
+    source_mode = st.radio(
+        "Origen de datos",
+        ["Archivos CSV/Excel", "Base de datos"],
+        horizontal=True,
+        key="upload_source_mode",
+    )
+    if source_mode == "Base de datos":
+        _render_database_import()
+    else:
+        _render_file_uploads()
+    _render_sales_period_confirmation()
+
+
+def _render_file_uploads() -> None:
     """Let an organisation upload independent CSVs and inspect their quality."""
     st.subheader("Carga y calidad de datos")
     st.write("Carga solo los archivos que tengas. Cada módulo se habilita cuando existen los campos necesarios.")
@@ -357,12 +393,18 @@ def render_uploads() -> None:
         if upload is None:
             continue
         try:
-            data, report = parse_tabular(upload.getvalue(), upload.name, contract)
+            uploaded_bytes = upload.getvalue()
+            data, report = parse_tabular(uploaded_bytes, upload.name, contract)
         except (UnicodeDecodeError, ValueError, pd.errors.ParserError) as error:
             st.error(f"No se pudo leer {contract.filename}: {error}")
             continue
         loaded[contract.key] = data
         st.session_state["demo_loaded"] = False
+        if contract.key == SALES_CONTRACT.key:
+            source_signature = hashlib.sha256(uploaded_bytes).hexdigest()
+            if source_signature != st.session_state.get("sales_period_source_signature"):
+                st.session_state["sales_period_complete"] = False
+            st.session_state["sales_period_source_signature"] = source_signature
         sources = dict(st.session_state.get("data_sources", {}))
         sources[contract.key] = f"Archivo cargado por el usuario: {upload.name}"
         st.session_state["data_sources"] = sources
@@ -391,8 +433,233 @@ def render_uploads() -> None:
         st.info("Los datos cargados permanecen solo en esta sesión del navegador; no se guardan en el repositorio.")
 
 
+def _connect_and_list_tables(config: DatabaseConfig) -> list[str]:
+    engine = create_database_engine(config)
+    try:
+        verify_connection(engine)
+        return list_tables(engine)
+    finally:
+        engine.dispose()
+
+
+def _read_database_table(config: DatabaseConfig, table_name: str, limit: int) -> pd.DataFrame:
+    engine = create_database_engine(config)
+    try:
+        return read_table(engine, table_name, limit)
+    finally:
+        engine.dispose()
+
+
+def _render_database_import() -> None:
+    """Connect to a trusted database and refresh one bounded table into this session."""
+    st.subheader("Conectar una base de datos")
+    st.write(
+        "La app solo ejecuta consultas de lectura. Usa una cuenta de base de datos con permiso "
+        "SELECT únicamente; los cambios se reflejan al pulsar «Actualizar datos»."
+    )
+    st.caption(
+        "La conexión se realiza desde el equipo que ejecuta Streamlit. Las credenciales viven "
+        "solo en esta sesión y no se guardan en archivos."
+    )
+
+    config = st.session_state.get("database_config")
+    if not isinstance(config, DatabaseConfig):
+        with st.form("database_connection_form"):
+            dialect_label = st.selectbox("Motor", ["MySQL", "PostgreSQL"], key="database_dialect")
+            dialect = "mysql" if dialect_label == "MySQL" else "postgresql"
+            default_port = 3306 if dialect == "mysql" else 5432
+            host = st.text_input("Host", value="localhost", key="database_host")
+            port = st.number_input(
+                "Puerto",
+                min_value=1,
+                max_value=65_535,
+                value=default_port,
+                step=1,
+                key=f"database_port_{dialect}",
+            )
+            database = st.text_input("Base de datos", key="database_name")
+            username = st.text_input("Usuario de solo lectura", key="database_username")
+            password = st.text_input("Contraseña", type="password", key="database_password")
+            connect_clicked = st.form_submit_button("Probar conexión y listar tablas", type="primary")
+
+        if connect_clicked:
+            config = DatabaseConfig(
+                dialect=dialect,
+                host=host,
+                port=int(port),
+                database=database,
+                username=username,
+                password=password,
+            )
+            try:
+                tables = _connect_and_list_tables(config)
+            except DatabaseConnectionError as error:
+                st.error(str(error))
+            else:
+                st.session_state["database_config"] = config
+                st.session_state["database_tables"] = tables
+                if tables:
+                    st.success(f"Conexión verificada: {len(tables)} tablas o vistas disponibles.")
+                else:
+                    st.warning("Conexión verificada, pero no hay tablas o vistas visibles.")
+
+    config = st.session_state.get("database_config")
+    if not isinstance(config, DatabaseConfig):
+        return
+    tables = st.session_state.get("database_tables", [])
+
+    if st.button("Desconectar", key="disconnect_database"):
+        for key in (
+            "database_config",
+            "database_tables",
+            "database_selected_table",
+            "database_dialect",
+            "database_host",
+            "database_name",
+            "database_username",
+            "database_password",
+            "database_port_mysql",
+            "database_port_postgresql",
+        ):
+            st.session_state.pop(key, None)
+        st.rerun()
+
+    if not tables:
+        return
+
+    st.success(f"Fuente conectada: {config.dialect} · {config.database} · {config.host}:{config.port}")
+    st.caption(
+        "Por defecto solo se permiten hosts locales. Para autorizar otro host de confianza, "
+        "configura RESQ_DB_ALLOWED_HOSTS en el equipo que ejecuta Streamlit."
+    )
+
+    contract_by_key = {contract.key: contract for contract in DATASET_CONTRACTS}
+    contract_labels = {"free": "EDA libre"}
+    contract_labels.update({key: contract.title for key, contract in contract_by_key.items()})
+    dataset_key = st.selectbox(
+        "Tipo de datos que quieres cargar",
+        options=list(contract_labels),
+        format_func=contract_labels.__getitem__,
+        key="database_dataset_key",
+    )
+    table_name = st.selectbox("Tabla o vista", options=tables, key="database_selected_table")
+    row_limit = int(
+        st.number_input(
+            "Máximo de filas",
+            min_value=1,
+            max_value=MAX_IMPORT_ROWS,
+            value=10_000,
+            step=1_000,
+        )
+    )
+    st.caption(
+        f"Se admiten hasta {MAX_IMPORT_ROWS:,} filas por actualización para proteger la memoria. "
+        "Para tablas mayores, prepara una vista agregada en la base de datos."
+    )
+
+    preview_column, refresh_column = st.columns(2)
+    with preview_column:
+        preview_clicked = st.button("Vista previa", key="preview_database_table")
+    with refresh_column:
+        refresh_clicked = st.button("Actualizar datos", type="primary", key="refresh_database_table")
+
+    if preview_clicked:
+        try:
+            preview = _read_database_table(config, table_name, min(100, row_limit))
+        except DatabaseConnectionError as error:
+            st.error(str(error))
+        else:
+            st.dataframe(preview, use_container_width=True, hide_index=True)
+
+    if not refresh_clicked:
+        return
+
+    try:
+        raw_data = _read_database_table(config, table_name, row_limit)
+    except DatabaseConnectionError as error:
+        st.error(str(error))
+        return
+
+    refreshed_at = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
+    source_label = (
+        f"{config.dialect} · {config.database}.{table_name} · actualizada {refreshed_at}"
+    )
+    if dataset_key == "free":
+        free_data = dict(st.session_state.get("free_eda_data", {}))
+        free_data["EDA libre"] = raw_data
+        st.session_state["free_eda_data"] = free_data
+        source_key = "EDA libre"
+        st.success(f"Datos actualizados: {len(raw_data):,} filas.")
+    else:
+        contract = contract_by_key[dataset_key]
+        normalized, report = parse_frame(raw_data, contract)
+        business_data = dict(st.session_state.get("business_data", {}))
+        business_data[dataset_key] = normalized
+        st.session_state["business_data"] = business_data
+        st.session_state["demo_loaded"] = False
+        if dataset_key == SALES_CONTRACT.key:
+            st.session_state["sales_period_complete"] = False
+            st.session_state.pop("sales_period_source_signature", None)
+        ingestion_reports = dict(st.session_state.get("ingestion_reports", {}))
+        ingestion_reports[dataset_key] = {
+            "valid_rows": report.valid_rows,
+            "total_rows": report.total_rows,
+            "missing_required": report.missing_required,
+            "invalid_values": report.invalid_values,
+            "duplicate_rows": report.duplicate_rows,
+            "mapped_columns": report.mapped_columns,
+        }
+        st.session_state["ingestion_reports"] = ingestion_reports
+        source_key = dataset_key
+        if report.missing_required:
+            st.error(f"Faltan campos obligatorios: {', '.join(report.missing_required)}.")
+        else:
+            st.success(f"Datos actualizados: {report.valid_rows:,}/{report.total_rows:,} filas aptas.")
+        if report.invalid_values:
+            st.warning(f"Valores no válidos: {report.invalid_values}.")
+        if report.duplicate_rows:
+            st.warning(f"Se detectaron {report.duplicate_rows} filas duplicadas; no se eliminaron.")
+        st.caption(f"Mapeo detectado: {report.mapped_columns}")
+
+    sources = dict(st.session_state.get("data_sources", {}))
+    sources[source_key] = source_label
+    st.session_state["data_sources"] = sources
+    st.dataframe(
+        st.session_state["free_eda_data"]["EDA libre"]
+        if dataset_key == "free"
+        else st.session_state["business_data"][dataset_key],
+        use_container_width=True,
+        hide_index=True,
+    )
+
+
 def _business_data() -> dict[str, pd.DataFrame]:
     return st.session_state.get("business_data", {})
+
+
+def _sales_period_complete() -> bool:
+    return bool(
+        st.session_state.get(
+            "sales_period_complete",
+            st.session_state.get("demo_loaded", False),
+        )
+    )
+
+
+def _render_sales_period_confirmation() -> bool:
+    """Ask whether absent transaction dates mean zero sales for the full period."""
+    if SALES_CONTRACT.key not in _business_data():
+        return False
+    if "sales_period_complete" not in st.session_state:
+        st.session_state["sales_period_complete"] = bool(st.session_state.get("demo_loaded", False))
+    return st.checkbox(
+        "Confirmo que el extracto de ventas incluye todos los días del periodo",
+        key="sales_period_complete",
+        help=(
+            "Actívalo solo si el archivo o la vista incluye todo el periodo, también los días "
+            "sin ventas. Al confirmarlo, esos días cuentan como cero en la demanda media y el riesgo por lote."
+        ),
+    )
 
 
 def _eda_data() -> dict[str, pd.DataFrame]:
@@ -1195,7 +1462,8 @@ def render_inventory_profitability() -> None:
         return
     costs = data.get(COSTS_CONTRACT.key)
     inventory = attach_cost_reference(inventory, costs)
-    daily = average_daily_demand(sales)
+    period_complete = _render_sales_period_confirmation()
+    daily = average_daily_demand(sales, assume_complete_period=period_complete)
     intelligence = inventory_intelligence(inventory, daily)
     total_capital = intelligence["capital_exposed"].sum()
     first, second, third = st.columns(3)
@@ -1211,10 +1479,17 @@ def render_inventory_profitability() -> None:
         use_container_width=True,
         hide_index=True,
     )
-    st.caption(
-        "La cobertura usa unidades medias por día observado (transacciones del mismo producto y día agregadas). "
-        "Los días ausentes no se imputan como cero; no es una previsión."
-    )
+    if period_complete:
+        st.caption(
+            "Periodo completo confirmado: la demanda divide las unidades por los días naturales desde la primera "
+            "fecha registrada de cada producto hasta el final del extracto; los días sin filas cuentan como cero. "
+            "Las fechas anteriores al primer registro son desconocidas. No es una previsión."
+        )
+    else:
+        st.warning(
+            "Periodo no confirmado completo: la demanda media usa solo fechas con registro. "
+            "Las señales de inventario son provisionales y pueden ocultar sobrestock o riesgo."
+        )
 
 
 def render_lot_risk() -> None:
@@ -1238,7 +1513,8 @@ def render_lot_risk() -> None:
     st.subheader("Riesgo por lote")
     st.write(
         "Este módulo opcional prioriza lotes con fecha límite a partir de las ventas históricas de la empresa. "
-        "No usa datos de demostración."
+        "No usa datos de demostración. Los días sin filas cuentan como cero ventas únicamente si confirmas "
+        "que el extracto cubre todos los días del periodo."
     )
     data = _business_data()
     sales, lots = data.get(SALES_CONTRACT.key), data.get(LOTS_CONTRACT.key)
@@ -1254,7 +1530,12 @@ def render_lot_risk() -> None:
             f"de lotes: {', '.join(sorted(missing_lots)) or 'ninguno'}."
         )
         return
-    risks, warnings = build_lot_risk(lots, sales)
+    period_complete = _render_sales_period_confirmation()
+    risks, warnings = build_lot_risk(
+        lots,
+        sales,
+        assume_complete_period=period_complete,
+    )
     for warning in warnings:
         st.warning(warning)
     if risks.empty:
@@ -1263,7 +1544,7 @@ def render_lot_risk() -> None:
     if valid_risks.empty:
         st.info("Ningún lote tiene todavía suficiente historial de ventas para estimar su riesgo.")
         return
-    critical_lots = valid_risks.loc[valid_risks["estimated_unsold_stock_ratio"] >= 0.60]
+    critical_lots = valid_risks.loc[valid_risks["risk_level"].isin(["Alto", "Crítico"])]
     first, second, third, fourth = st.columns(4)
     first.metric("Coste expuesto estimado", f"{valid_risks['cost_exposed'].sum():,.2f} €")
     second.metric("Lotes prioritarios", len(critical_lots))
@@ -1283,17 +1564,14 @@ def render_lot_risk() -> None:
     else:
         st.success("No hay lotes con riesgo alto según el historial y los datos cargados.")
     ranked_lots = valid_risks.copy()
-    ranked_lots["risk_level"] = pd.cut(
-        ranked_lots["estimated_unsold_stock_ratio"],
-        bins=[-0.01, 0.30, 0.60, 0.85, 1.0],
-        labels=["Bajo", "Medio", "Alto", "Crítico"],
-    )
     display_columns = [
         "lot_id",
         "product_id",
         "stock_available",
         "expiry_date",
         "days_remaining",
+        "sales_days",
+        "history_days",
         "daily_demand",
         "estimated_unsold_stock_ratio",
         "risk_level",
@@ -1313,7 +1591,8 @@ def render_lot_risk() -> None:
     with detail_left:
         st.markdown("#### Explicación del riesgo")
         st.write(
-            f"Con una demanda diaria observada de **{selected['daily_demand']:.2f} unidades**, "
+            f"Con una demanda media de **{selected['daily_demand']:.2f} unidades/día** durante "
+            f"**{selected['history_days']} días naturales** ({selected['sales_days']} fechas con registros), "
             f"se estiman **{selected['expected_sales_before_expiry']:.2f} unidades** vendidas antes "
             f"de la fecha límite. El lote tiene {selected['stock_available']:.2f} unidades disponibles."
         )
@@ -1326,7 +1605,8 @@ def render_lot_risk() -> None:
         )
     st.caption(
         "Riesgo estimado = unidades que previsiblemente no se venderán antes de la fecha límite / stock del lote. "
-        "Es una estimación basada en el historial cargado, no una merma confirmada."
+        "La demanda cuenta como cero los días sin filas desde el primer registro del producto hasta el final "
+        "del extracto confirmado. Es una estimación, no una probabilidad calibrada ni una merma confirmada."
     )
 
 
@@ -1402,10 +1682,15 @@ def render_real_demand() -> None:
         st.link_button("Fuente oficial FreshRetailNet-50K", SOURCE_URL)
         return
     metrics = json.loads(METRICS_PATH.read_text(encoding="utf-8"))
-    first, second, third = st.columns(3)
-    first.metric("Observaciones evaluadas", metrics["evaluation_rows"])
-    second.metric("MAE", metrics["mae"])
-    third.metric("RMSE", metrics["rmse"])
+    model_metrics = metrics["models"]
+    baseline = model_metrics["seasonal_naive"]
+    moving_average = model_metrics["moving_average_7d"]
+    first, second, third, fourth = st.columns(4)
+    first.metric("MAE · baseline estacional", baseline["mae"])
+    second.metric("MAE · media móvil 7 días", moving_average["mae"])
+    third.metric("RMSE · baseline estacional", baseline["rmse"])
+    fourth.metric("RMSE · media móvil 7 días", moving_average["rmse"])
+    st.caption(f"Observaciones evaluadas: {metrics['evaluation_rows']:,} · Series: {metrics['series_evaluated']:,}.")
     st.caption(metrics["evaluation_method"])
     forecasts = pd.read_csv(FORECAST_PATH)
     sample_key = forecasts[["store_id", "product_id"]].iloc[0]
@@ -1417,9 +1702,16 @@ def render_real_demand() -> None:
         px.line(
             sample,
             x="dt",
-            y=["sale_amount", "forecast_units"],
-            title="Ventas reales y previsión de referencia para una serie real",
-            labels={"value": "Unidades vendidas", "dt": "Fecha"},
+            y=["sale_amount", "forecast_units", "moving_average_7d_units"],
+            title="Ventas reales frente a baseline y media móvil",
+            labels={
+                "value": "Unidades vendidas",
+                "dt": "Fecha",
+                "variable": "Serie",
+                "sale_amount": "Ventas reales",
+                "forecast_units": "Baseline estacional",
+                "moving_average_7d_units": "Media móvil (7 días)",
+            },
         ),
         use_container_width=True,
     )
