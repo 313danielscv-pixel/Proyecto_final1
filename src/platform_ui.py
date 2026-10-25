@@ -40,10 +40,6 @@ from src.advanced_eda import (
 )
 from src.contracts import DATASET_CONTRACTS, COSTS_CONTRACT, INVENTORY_CONTRACT, LOTS_CONTRACT, SALES_CONTRACT
 from src.demo_data import DEMO_COLUMN_UNITS, DEMO_DIRECTORY
-from src.fetch_eurostat_retail_context import (
-    OUTPUT_PATH as RETAIL_VOLUME_CONTEXT_PATH,
-    SOURCE_URL as RETAIL_VOLUME_CONTEXT_URL,
-)
 from src.ingestion import parse_frame, parse_free_tabular, parse_tabular
 from src.lot_risk import build_lot_risk
 from src.real_demand import FORECAST_PATH, METRICS_PATH, SOURCE_URL
@@ -252,73 +248,6 @@ def render_home() -> None:
         with column:
             st.markdown(f"#### {title}")
             st.caption(description)
-
-
-def render_data_sources() -> None:
-    """Show loaded datasets with provenance labels and the public demonstration source."""
-    st.subheader("Datos y fuentes")
-    all_data = {**_business_data(), **st.session_state.get("free_eda_data", {})}
-    if all_data:
-        source_rows = [
-            {
-                "Conjunto": name,
-                "Filas": len(data),
-                "Columnas": len(data.columns),
-                "Periodo": _period_label(data),
-                "Procedencia": _source_label(name),
-            }
-            for name, data in sorted(all_data.items())
-        ]
-        st.dataframe(pd.DataFrame(source_rows), use_container_width=True, hide_index=True)
-    else:
-        st.info("Todavía no hay archivos en esta sesión.")
-    st.markdown("#### Demostración pública")
-    st.write(
-        "FreshRetailNet-50K aporta las ventas reales usadas para evaluar la línea base de demanda. "
-        "No aporta los costes internos, inventario ni fechas de caducidad del escenario de demostración."
-    )
-    st.link_button("Ver fuente FreshRetailNet-50K", SOURCE_URL)
-    st.caption(
-        "Licencia declarada por la fuente: CC BY 4.0. Los datos FreshMarket y los supuestos de inventario, costes y lotes son sintéticos."
-    )
-    st.markdown("#### Contexto reciente del comercio alimentario en España")
-    if RETAIL_VOLUME_CONTEXT_PATH.exists():
-        context = json.loads(RETAIL_VOLUME_CONTEXT_PATH.read_text(encoding="utf-8"))
-        monthly_series = pd.DataFrame(context["series"])
-        if monthly_series.empty:
-            st.warning("El archivo de contexto de Eurostat no contiene observaciones.")
-        else:
-            st.plotly_chart(
-                px.line(
-                    monthly_series,
-                    x="month",
-                    y="volume_index_2021_100",
-                    title="Volumen mensual de ventas de alimentos, bebidas y tabaco",
-                    labels={
-                        "month": "Mes",
-                        "volume_index_2021_100": "Índice de volumen (2021 = 100)",
-                    },
-                ),
-                use_container_width=True,
-                theme="streamlit",
-            )
-            latest = monthly_series.iloc[-1]
-            st.caption(
-                f"Último periodo disponible: {latest['month']} · "
-                f"índice {latest['volume_index_2021_100']:.1f} · "
-                f"descarga UTC: {context['retrieved_at_utc']}. "
-                "Es contexto agregado mensual; no es venta de una tienda ni predicción por producto."
-            )
-    else:
-        st.info(
-            "No se ha descargado el contexto mensual de Eurostat. "
-            "Ejecuta `python -m src.fetch_eurostat_retail_context` para obtenerlo."
-        )
-    st.link_button("Ver serie mensual oficial de Eurostat", RETAIL_VOLUME_CONTEXT_URL)
-    st.caption(
-        "Eurostat: índice de volumen, España, alimentos/bebidas/tabaco, ajuste de calendario, base 2021=100; "
-        "reutilización con atribución bajo CC BY 4.0."
-    )
 
 
 def render_report() -> None:

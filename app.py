@@ -20,7 +20,6 @@ from src.chat_assistant import (
 from src.platform_ui import (
     render_advanced_eda,
     render_business_eda,
-    render_data_sources,
     render_home,
     render_inventory_profitability,
     render_lot_risk,
@@ -39,7 +38,6 @@ PAGE_DESCRIPTIONS = {
     "Inventario y rentabilidad": "Revisa cobertura, capital en inventario y señales de rotura o sobrestock.",
     "Riesgo por lote": "Prioriza lotes con fecha límite usando las ventas históricas cargadas.",
     "Escenarios": "Compara el margen base con supuestos explícitos de precio y demanda.",
-    "Fuentes": "Comprueba la procedencia y naturaleza de los datos disponibles en esta sesión.",
     "Informe": "Descarga un resumen verificable de calidad, resultados, procedencia y limitaciones.",
 }
 
@@ -345,8 +343,6 @@ def main() -> None:
         render_lot_risk()
     elif section == "Escenarios":
         render_scenarios()
-    elif section == "Fuentes":
-        render_data_sources()
     elif section == "Informe":
         render_report()
 
