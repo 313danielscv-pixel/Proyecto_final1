@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Mapping
 
 import pandas as pd
@@ -44,6 +45,8 @@ PAGE_DESCRIPTIONS = {
     "Metodología": "Entiende qué calcula cada módulo y qué conclusiones no permite extraer.",
 }
 
+LOGO_PATH = Path(__file__).resolve().parent / "assets" / "resq_icon.png"
+
 
 def _apply_visual_style() -> None:
     """Apply a restrained shared visual theme to Streamlit's native components."""
@@ -72,6 +75,33 @@ def _apply_visual_style() -> None:
         [data-testid="stSidebar"] {
             background: #0e1726;
             border-right: 1px solid var(--rq-border);
+        }
+        [data-testid="stSidebar"] [data-testid="stImage"] img {
+            display: block;
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        .resq-brand-wordmark {
+            color: #e7eef7;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.32em;
+            margin: -0.45rem 0 0 0.32em;
+            text-align: center;
+        }
+        .resq-brand-glow {
+            background: linear-gradient(90deg, transparent, #087bff 28%, #8beaff 50%, #087bff 72%, transparent);
+            border-radius: 50%;
+            box-shadow: 0 0 12px 3px rgba(0, 145, 255, 0.55);
+            height: 2px;
+            margin: 0.55rem auto 0.65rem;
+            width: 64%;
+        }
+        .resq-brand-tagline {
+            color: var(--rq-muted);
+            font-size: 0.75rem;
+            margin-bottom: 1rem;
+            text-align: center;
         }
         [data-testid="stDecoration"] {
             background: var(--rq-primary) !important;
@@ -269,13 +299,12 @@ def main() -> None:
     _apply_visual_style()
 
     with st.sidebar:
+        st.image(str(LOGO_PATH), width=205)
         st.markdown(
             """
-            <div style="padding:0.4rem 0 1.1rem">
-              <div style="font-size:0.75rem;letter-spacing:0.14em;font-weight:700;color:#2cc9a7">RESQ</div>
-              <div style="font-size:1.35rem;font-weight:750;color:#e7eef7">Intelligence</div>
-              <div style="font-size:0.83rem;color:#9aa9bc">Decisiones basadas en datos</div>
-            </div>
+            <div class="resq-brand-wordmark">INTELLIGENCE</div>
+            <div class="resq-brand-glow"></div>
+            <div class="resq-brand-tagline">Decisiones basadas en datos</div>
             """,
             unsafe_allow_html=True,
         )
