@@ -105,8 +105,9 @@ def group_difference(data: pd.DataFrame, numeric_column: str, group_column: str)
     groups = data[[numeric_column, group_column]].dropna().groupby(group_column)[numeric_column]
     if len(groups) != 2:
         raise ValueError("Selecciona una categoría con exactamente dos grupos no vacíos.")
-    first_name, first_values = next(iter(groups))
-    second_name, second_values = next(iter(groups))
+    group_iterator = iter(groups)
+    first_name, first_values = next(group_iterator)
+    second_name, second_values = next(group_iterator)
     statistic, p_value = stats.mannwhitneyu(first_values, second_values, alternative="two-sided")
     effect = 1 - (2 * statistic / (len(first_values) * len(second_values)))
     return {

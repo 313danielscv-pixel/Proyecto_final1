@@ -162,6 +162,11 @@ def test_demo_eda_preloads_units_for_each_dataset() -> None:
     )
     app.run()
 
+    dataset_selector = next(
+        widget for widget in app.selectbox if widget.label == "Conjunto de datos"
+    )
+    assert dataset_selector.value == "sales"
+
     for dataset_name in ("sales", "inventory", "costs", "lots"):
         selector = next(
             widget for widget in app.selectbox if widget.label == "Conjunto de datos"

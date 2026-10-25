@@ -6,6 +6,7 @@ import pytest
 from src.advanced_eda import (
     bootstrap_mean_interval,
     correlation_matrix,
+    group_difference,
     numeric_summary,
     population_stability_index,
     profile_data,
@@ -56,6 +57,21 @@ def test_correlation_and_temporal_anomaly_analysis() -> None:
     result, warnings = temporal_summary(series, "date", "value")
     assert not warnings
     assert result["anomaly"].iloc[-1]
+
+
+def test_group_difference_compares_each_of_the_two_groups() -> None:
+    data = pd.DataFrame(
+        {
+            "quantity": [1, 2, 3, 4, 10, 11, 12, 13],
+            "promotion": [False] * 4 + [True] * 4,
+        }
+    )
+
+    result = group_difference(data, "quantity", "promotion")
+
+    assert (result["grupo_1"], result["grupo_2"]) == ("False", "True")
+    assert result["p_valor"] < 0.05
+    assert result["tamano_efecto_rank_biserial"] == pytest.approx(1)
 
 
 def test_temporal_summary_combines_timestamps_within_the_same_day() -> None:

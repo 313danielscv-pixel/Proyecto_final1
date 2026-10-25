@@ -1208,7 +1208,14 @@ def render_advanced_eda() -> None:
     if not data_sets:
         st.info("Carga un CSV o Excel para activar el EDA avanzado.")
         return
-    selected_key = st.selectbox("Conjunto de datos", sorted(data_sets), format_func=lambda key: key.capitalize())
+    dataset_options = sorted(data_sets)
+    default_dataset = "sales" if "sales" in data_sets else dataset_options[0]
+    selected_key = st.selectbox(
+        "Conjunto de datos",
+        dataset_options,
+        index=dataset_options.index(default_dataset),
+        format_func=lambda key: key.capitalize(),
+    )
     data = data_sets[selected_key].copy()
     st.caption(
         f"Fuente: {_source_label(selected_key)} · {len(data):,} filas · {len(data.columns):,} columnas · "
