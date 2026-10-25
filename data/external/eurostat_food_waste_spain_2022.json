@@ -6,5 +6,9 @@
   "dataset": "cei_pc035",
   "source_url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/cei_pc035?lang=EN&geo=ES&time=2022",
   "source": "Eurostat",
+  "reuse_license": "CC BY 4.0",
+  "attribution": "Eurostat (European Union)",
+  "reuse_policy_url": "https://ec.europa.eu/eurostat/help/copyright-notice",
+  "retrieved_at_utc": "2026-10-24T10:40:07+00:00",
   "methodological_note": "<p>The indicator is defined as&nbsp;the amount of food waste generated per year divided by the average population of the country.</p><p>Food waste is measured as fresh mass all along the food value chain, including production sites, processing and manufacture, retail and distribution, restaurants and food services and households. </p>"
 }

@@ -15,6 +15,21 @@ from src.real_demand import TRAIN_PATH
 DEMO_DIRECTORY = ROOT / "data" / "demo"
 DEMO_METADATA = DEMO_DIRECTORY / "README_DEMO.json"
 LOT_SCENARIOS = ((4, 4), (4, 6), (4, 10), (4, 20), (4, 40), (1, 4), (7, 10), (2, 50))
+DEMO_COLUMN_UNITS: dict[str, dict[str, str]] = {
+    "sales": {"quantity": "unidades"},
+    "inventory": {
+        "on_hand_units": "unidades",
+        "unit_cost": "€/unidad",
+        "reorder_lead_days": "días",
+        "minimum_stock": "unidades",
+    },
+    "costs": {
+        "unit_cost": "€/unidad",
+        "unit_price": "€/unidad",
+        "holding_cost_per_unit_day": "€/unidad/día",
+    },
+    "lots": {"stock_available": "unidades", "unit_cost": "€/unidad"},
+}
 
 
 def build_demo_bundle(
@@ -142,6 +157,7 @@ def build_demo_bundle(
                     "costs": "Unit cost, price and holding cost are demonstration assumptions.",
                     "lots": "Lot stock cover and expiry dates vary by lot to demonstrate distinct risk levels.",
                 },
+                "column_units": DEMO_COLUMN_UNITS,
             },
             ensure_ascii=False,
             indent=2,

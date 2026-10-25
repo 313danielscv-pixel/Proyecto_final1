@@ -8,7 +8,7 @@ from src.business_intelligence import (
     sales_eda,
     scenario_sensitivity,
 )
-from src.contracts import INVENTORY_CONTRACT, SALES_CONTRACT
+from src.contracts import SALES_CONTRACT
 from src.ingestion import parse_csv, parse_frame, parse_free_tabular
 
 

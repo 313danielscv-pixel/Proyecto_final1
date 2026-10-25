@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import urlopen
 
@@ -31,6 +32,10 @@ def fetch_context(output_path: Path = OUTPUT) -> dict[str, object]:
         "dataset": "cei_pc035",
         "source_url": URL,
         "source": "Eurostat",
+        "reuse_license": "CC BY 4.0",
+        "attribution": "Eurostat (European Union)",
+        "reuse_policy_url": "https://ec.europa.eu/eurostat/help/copyright-notice",
+        "retrieved_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "methodological_note": payload["extension"]["description"],
     }
     output_path.parent.mkdir(parents=True, exist_ok=True)

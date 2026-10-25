@@ -1,0 +1,145 @@
+{
+  "dataset": "sts_trtu_m",
+  "indicator": "Retail volume of sales: food, beverages and tobacco",
+  "country": "Spain",
+  "frequency": "Monthly",
+  "unit": "Index, 2021=100",
+  "adjustment": "Calendar adjusted; not seasonally adjusted",
+  "source": "Eurostat",
+  "source_url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/sts_trtu_m?lang=en&freq=M&indic_bt=VOL_SLS&nace_r2=G47_FOOD&s_adj=CA&unit=I21&geo=ES&sinceTimePeriod=2024-01",
+  "reuse_license": "CC BY 4.0",
+  "attribution": "Eurostat (European Union)",
+  "reuse_policy_url": "https://ec.europa.eu/eurostat/help/copyright-notice",
+  "retrieved_at_utc": "2026-10-24T10:46:55+00:00",
+  "latest_month": "2026-08",
+  "series": [
+    {
+      "month": "2024-01",
+      "volume_index_2021_100": 92.8
+    },
+    {
+      "month": "2024-02",
+      "volume_index_2021_100": 88.9
+    },
+    {
+      "month": "2024-03",
+      "volume_index_2021_100": 98.3
+    },
+    {
+      "month": "2024-04",
+      "volume_index_2021_100": 97.0
+    },
+    {
+      "month": "2024-05",
+      "volume_index_2021_100": 99.1
+    },
+    {
+      "month": "2024-06",
+      "volume_index_2021_100": 100.8
+    },
+    {
+      "month": "2024-07",
+      "volume_index_2021_100": 108.1
+    },
+    {
+      "month": "2024-08",
+      "volume_index_2021_100": 106.4
+    },
+    {
+      "month": "2024-09",
+      "volume_index_2021_100": 101.6
+    },
+    {
+      "month": "2024-10",
+      "volume_index_2021_100": 102.9
+    },
+    {
+      "month": "2024-11",
+      "volume_index_2021_100": 98.3
+    },
+    {
+      "month": "2024-12",
+      "volume_index_2021_100": 118.8
+    },
+    {
+      "month": "2025-01",
+      "volume_index_2021_100": 95.8
+    },
+    {
+      "month": "2025-02",
+      "volume_index_2021_100": 91.9
+    },
+    {
+      "month": "2025-03",
+      "volume_index_2021_100": 103.0
+    },
+    {
+      "month": "2025-04",
+      "volume_index_2021_100": 101.3
+    },
+    {
+      "month": "2025-05",
+      "volume_index_2021_100": 103.2
+    },
+    {
+      "month": "2025-06",
+      "volume_index_2021_100": 106.7
+    },
+    {
+      "month": "2025-07",
+      "volume_index_2021_100": 112.7
+    },
+    {
+      "month": "2025-08",
+      "volume_index_2021_100": 111.0
+    },
+    {
+      "month": "2025-09",
+      "volume_index_2021_100": 106.4
+    },
+    {
+      "month": "2025-10",
+      "volume_index_2021_100": 106.7
+    },
+    {
+      "month": "2025-11",
+      "volume_index_2021_100": 102.8
+    },
+    {
+      "month": "2025-12",
+      "volume_index_2021_100": 121.4
+    },
+    {
+      "month": "2026-01",
+      "volume_index_2021_100": 98.2
+    },
+    {
+      "month": "2026-02",
+      "volume_index_2021_100": 93.5
+    },
+    {
+      "month": "2026-03",
+      "volume_index_2021_100": 105.8
+    },
+    {
+      "month": "2026-04",
+      "volume_index_2021_100": 102.7
+    },
+    {
+      "month": "2026-05",
+      "volume_index_2021_100": 105.1
+    },
+    {
+      "month": "2026-06",
+      "volume_index_2021_100": 107.1
+    },
+    {
+      "month": "2026-07",
+      "volume_index_2021_100": 112.3
+    },
+    {
+      "month": "2026-08",
+      "volume_index_2021_100": 109.9
+    }
+  ]
+}

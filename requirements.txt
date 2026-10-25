@@ -10,3 +10,4 @@ pyarrow==17.0.0
 SQLAlchemy>=2.0,<3.0
 PyMySQL>=1.1,<2.0
 psycopg[binary]>=3.2,<4.0
+pyodbc>=5.2,<6.0

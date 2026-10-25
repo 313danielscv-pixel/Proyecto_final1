@@ -14,6 +14,10 @@ ResQ Intelligence no presupone que todas las empresas tengan la misma estructura
 
 Los ejemplos contienen datos ficticios de una sola fila. Son plantillas, no datos de demostración.
 
+## Permisos y datos personales
+
+El proyecto no utiliza datos personales en sus fuentes públicas ni en la demo. Quien cargue datos de una empresa debe contar con autorización para utilizarlos y retirar o anonimizar identificadores personales antes de la carga. ResQ valida columnas y calidad, pero no detecta ni anonimiza automáticamente datos personales.
+
 ## Mínimos por módulo
 
 | Módulo | Datos necesarios | Si faltan datos |

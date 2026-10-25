@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime
-from pathlib import Path
 
 import pandas as pd
 import plotly.express as px
@@ -40,7 +39,11 @@ from src.advanced_eda import (
     temporal_summary,
 )
 from src.contracts import DATASET_CONTRACTS, COSTS_CONTRACT, INVENTORY_CONTRACT, LOTS_CONTRACT, SALES_CONTRACT
-from src.demo_data import DEMO_DIRECTORY
+from src.demo_data import DEMO_COLUMN_UNITS, DEMO_DIRECTORY
+from src.fetch_eurostat_retail_context import (
+    OUTPUT_PATH as RETAIL_VOLUME_CONTEXT_PATH,
+    SOURCE_URL as RETAIL_VOLUME_CONTEXT_URL,
+)
 from src.ingestion import parse_frame, parse_free_tabular, parse_tabular
 from src.lot_risk import build_lot_risk
 from src.real_demand import FORECAST_PATH, METRICS_PATH, SOURCE_URL
@@ -70,6 +73,9 @@ def load_demo_data() -> bool:
     }
     st.session_state["sales_period_complete"] = True
     st.session_state["sales_period_source_signature"] = "demo"
+    for dataset_name, units_by_column in DEMO_COLUMN_UNITS.items():
+        for column, unit in units_by_column.items():
+            st.session_state[_advanced_eda_unit_widget_key(dataset_name, column)] = unit
     ingestion_reports = dict(st.session_state.get("ingestion_reports", {}))
     for dataset_key in demo_files:
         ingestion_reports.pop(dataset_key, None)
@@ -100,6 +106,16 @@ def _period_label(data: pd.DataFrame) -> str:
 def _format_eda_number(value: float, decimals: int = 1) -> str:
     formatted = f"{value:,.{decimals}f}"
     return formatted.replace(",", "_").replace(".", ",").replace("_", ".")
+
+
+def _eda_axis_label(column: object, unit: str = "") -> str:
+    unit = unit.strip()
+    return f"{column} ({unit})" if unit else f"{column} (unidad no especificada)"
+
+
+def _advanced_eda_unit_widget_key(dataset_name: str, column: object) -> str:
+    column_key = hashlib.sha256(str(column).encode("utf-8")).hexdigest()[:12]
+    return f"advanced_eda_unit_{dataset_name}_{column_key}"
 
 
 def _format_eda_date(value: object) -> str:
@@ -265,6 +281,44 @@ def render_data_sources() -> None:
     st.caption(
         "Licencia declarada por la fuente: CC BY 4.0. Los datos FreshMarket y los supuestos de inventario, costes y lotes son sintéticos."
     )
+    st.markdown("#### Contexto reciente del comercio alimentario en España")
+    if RETAIL_VOLUME_CONTEXT_PATH.exists():
+        context = json.loads(RETAIL_VOLUME_CONTEXT_PATH.read_text(encoding="utf-8"))
+        monthly_series = pd.DataFrame(context["series"])
+        if monthly_series.empty:
+            st.warning("El archivo de contexto de Eurostat no contiene observaciones.")
+        else:
+            st.plotly_chart(
+                px.line(
+                    monthly_series,
+                    x="month",
+                    y="volume_index_2021_100",
+                    title="Volumen mensual de ventas de alimentos, bebidas y tabaco",
+                    labels={
+                        "month": "Mes",
+                        "volume_index_2021_100": "Índice de volumen (2021 = 100)",
+                    },
+                ),
+                use_container_width=True,
+                theme="streamlit",
+            )
+            latest = monthly_series.iloc[-1]
+            st.caption(
+                f"Último periodo disponible: {latest['month']} · "
+                f"índice {latest['volume_index_2021_100']:.1f} · "
+                f"descarga UTC: {context['retrieved_at_utc']}. "
+                "Es contexto agregado mensual; no es venta de una tienda ni predicción por producto."
+            )
+    else:
+        st.info(
+            "No se ha descargado el contexto mensual de Eurostat. "
+            "Ejecuta `python -m src.fetch_eurostat_retail_context` para obtenerlo."
+        )
+    st.link_button("Ver serie mensual oficial de Eurostat", RETAIL_VOLUME_CONTEXT_URL)
+    st.caption(
+        "Eurostat: índice de volumen, España, alimentos/bebidas/tabaco, ajuste de calendario, base 2021=100; "
+        "reutilización con atribución bajo CC BY 4.0."
+    )
 
 
 def render_report() -> None:
@@ -357,9 +411,6 @@ def _render_file_uploads() -> None:
     """Let an organisation upload independent CSVs and inspect their quality."""
     st.subheader("Carga y calidad de datos")
     st.write("Carga solo los archivos que tengas. Cada módulo se habilita cuando existen los campos necesarios.")
-    if st.button("Cargar demostración con demanda real", type="primary"):
-        if load_demo_data():
-            st.success("Demostración cargada. Revisa EDA empresarial, Inventario y margen y Riesgo por lote.")
     if st.session_state.get("demo_loaded"):
         st.info(
             "Demostración activa: ventas reales de FreshRetailNet-50K. Inventario, costes y lote son "
@@ -465,9 +516,15 @@ def _render_database_import() -> None:
     config = st.session_state.get("database_config")
     if not isinstance(config, DatabaseConfig):
         with st.form("database_connection_form"):
-            dialect_label = st.selectbox("Motor", ["MySQL", "PostgreSQL"], key="database_dialect")
-            dialect = "mysql" if dialect_label == "MySQL" else "postgresql"
-            default_port = 3306 if dialect == "mysql" else 5432
+            dialect_options = {
+                "MySQL": ("mysql", 3306),
+                "PostgreSQL": ("postgresql", 5432),
+                "SQL Server": ("mssql", 1433),
+            }
+            dialect_label = st.selectbox(
+                "Motor", list(dialect_options), key="database_dialect"
+            )
+            dialect, default_port = dialect_options[dialect_label]
             host = st.text_input("Host", value="localhost", key="database_host")
             port = st.number_input(
                 "Puerto",
@@ -478,8 +535,37 @@ def _render_database_import() -> None:
                 key=f"database_port_{dialect}",
             )
             database = st.text_input("Base de datos", key="database_name")
-            username = st.text_input("Usuario de solo lectura", key="database_username")
-            password = st.text_input("Contraseña", type="password", key="database_password")
+            use_windows_auth = False
+            trust_server_certificate = False
+            if dialect == "mssql":
+                authentication_label = st.radio(
+                    "Autenticación",
+                    ["Windows", "SQL Server"],
+                    horizontal=True,
+                    key="database_auth_mode",
+                )
+                use_windows_auth = authentication_label == "Windows"
+                st.caption(
+                    "Con Windows se usará la cuenta que ejecuta ResQ; debe tener solo permiso "
+                    "SELECT en la base de datos. "
+                    "Configura SQL Server para aceptar conexiones TCP en el puerto indicado."
+                )
+                if not use_windows_auth:
+                    st.caption("Utiliza una cuenta de SQL Server con permiso SELECT únicamente.")
+                trust_server_certificate = st.checkbox(
+                    "Confiar en el certificado del servidor",
+                    help=(
+                        "Actívalo solo para una conexión local de prueba con un certificado "
+                        "autofirmado. En conexiones remotas, usa un certificado válido."
+                    ),
+                    key="database_trust_server_certificate",
+                )
+            if dialect != "mssql" or not use_windows_auth:
+                username = st.text_input("Usuario de solo lectura", key="database_username")
+                password = st.text_input("Contraseña", type="password", key="database_password")
+            else:
+                username = ""
+                password = ""
             connect_clicked = st.form_submit_button("Probar conexión y listar tablas", type="primary")
 
         if connect_clicked:
@@ -490,6 +576,8 @@ def _render_database_import() -> None:
                 database=database,
                 username=username,
                 password=password,
+                trust_server_certificate=trust_server_certificate,
+                use_windows_auth=use_windows_auth,
             )
             try:
                 tables = _connect_and_list_tables(config)
@@ -520,6 +608,9 @@ def _render_database_import() -> None:
             "database_password",
             "database_port_mysql",
             "database_port_postgresql",
+            "database_port_mssql",
+            "database_trust_server_certificate",
+            "database_auth_mode",
         ):
             st.session_state.pop(key, None)
         st.rerun()
@@ -949,14 +1040,16 @@ def render_business_eda() -> None:
                 else "Media y mediana coinciden en esta selección."
             )
             chart_columns = st.columns(2)
+            distribution_figure = px.histogram(
+                observed_daily,
+                x="quantity",
+                nbins=20,
+                title="Frecuencia de unidades por fecha observada",
+                labels={"quantity": "Unidades por fecha"},
+            )
+            distribution_figure.update_yaxes(title_text="Número de fechas")
             chart_columns[0].plotly_chart(
-                px.histogram(
-                    observed_daily,
-                    x="quantity",
-                    nbins=20,
-                    title="Frecuencia de unidades por fecha observada",
-                    labels={"quantity": "Unidades por fecha"},
-                ),
+                distribution_figure,
                 use_container_width=True,
                 theme="streamlit",
             )
@@ -1169,8 +1262,46 @@ def render_advanced_eda() -> None:
         "Empieza por **Perfil y calidad**. Usa distribuciones y relaciones para investigar patrones; "
         "termina revisando las limitaciones antes de interpretar el resultado."
     )
-    numeric_columns = data.select_dtypes(include="number").columns.tolist()
+    numeric_columns = [
+        column
+        for column in data.select_dtypes(include="number").columns
+        if pd.to_numeric(data[column], errors="coerce")
+        .replace([float("inf"), float("-inf")], float("nan"))
+        .notna()
+        .any()
+    ]
     categorical_columns = [column for column in data.columns if column not in numeric_columns]
+    unit_labels: dict[object, str] = {}
+    if numeric_columns:
+        with st.expander("Unidades de medida", expanded=False):
+            st.caption(
+                "Indica la unidad declarada para cada variable numérica. "
+                "Estas etiquetas solo describen los gráficos; no convierten los datos."
+            )
+            demo_units = (
+                DEMO_COLUMN_UNITS.get(selected_key, {})
+                if st.session_state.get("demo_loaded")
+                else {}
+            )
+            for column in numeric_columns:
+                widget_key = _advanced_eda_unit_widget_key(selected_key, column)
+                if widget_key not in st.session_state and column in demo_units:
+                    st.session_state[widget_key] = demo_units[column]
+                unit_labels[column] = st.text_input(
+                    f"Unidad de {column}",
+                    key=widget_key,
+                    placeholder="p. ej., unidades, kg, €",
+                ).strip()
+            missing_units = [str(column) for column in numeric_columns if not unit_labels[column]]
+            if missing_units:
+                st.warning(
+                    "Pendiente de revisar: no se ha indicado la unidad de "
+                    f"{', '.join(missing_units)}. Los ejes lo mostrarán explícitamente."
+                )
+
+    def axis_label(column: object) -> str:
+        return _eda_axis_label(column, unit_labels.get(column, ""))
+
     profile_tab, univariate_tab, relations_tab, time_tab, robustness_tab = st.tabs(
         ["Perfil y calidad", "Distribuciones", "Relaciones", "Tiempo y anomalías", "Robustez"]
     )
@@ -1214,7 +1345,15 @@ def render_advanced_eda() -> None:
             )
             left, right = st.columns(2)
             with left:
-                st.plotly_chart(px.histogram(data, x=column, nbins=30, title=f"Distribución de {column}"), use_container_width=True)
+                distribution_figure = px.histogram(
+                    data,
+                    x=column,
+                    nbins=30,
+                    title=f"Distribución de {column}",
+                )
+                distribution_figure.update_xaxes(title_text=axis_label(column))
+                distribution_figure.update_yaxes(title_text="Número de registros")
+                st.plotly_chart(distribution_figure, use_container_width=True)
                 if not values.empty:
                     mean_value = float(values.mean())
                     median_value = float(values.median())
@@ -1233,7 +1372,9 @@ def render_advanced_eda() -> None:
                         f"{_format_eda_number(float(values.max()))}. {shape_reading}"
                     )
             with right:
-                st.plotly_chart(px.box(data, y=column, title=f"Valores atípicos de {column}"), use_container_width=True)
+                box_figure = px.box(data, y=column, title=f"Valores atípicos de {column}")
+                box_figure.update_yaxes(title_text=axis_label(column))
+                st.plotly_chart(box_figure, use_container_width=True)
                 if not values.empty:
                     first_quartile, third_quartile = values.quantile([0.25, 0.75])
                     iqr = third_quartile - first_quartile
@@ -1250,11 +1391,35 @@ def render_advanced_eda() -> None:
                         "candidato(s) extremo(s), que conviene revisar y no son errores confirmados."
                     )
     with relations_tab:
-        correlation = correlation_matrix(data)
+        correlation = correlation_matrix(data[numeric_columns])
         if correlation.empty:
             st.info("Se necesitan al menos dos columnas numéricas para correlaciones.")
         else:
-            st.plotly_chart(px.imshow(correlation, text_auto=".2f", title="Correlación entre variables numéricas"), use_container_width=True)
+            correlation_figure = px.imshow(
+                correlation,
+                text_auto=".2f",
+                title="Correlación entre variables numéricas",
+                labels={
+                    "x": "Variable y unidad",
+                    "y": "Variable y unidad",
+                    "color": "Correlación (r)",
+                },
+            )
+            correlation_tick_labels = [
+                axis_label(column) for column in correlation.columns
+            ]
+            correlation_figure.update_xaxes(
+                tickmode="array",
+                tickvals=correlation.columns.tolist(),
+                ticktext=correlation_tick_labels,
+                tickangle=-35,
+            )
+            correlation_figure.update_yaxes(
+                tickmode="array",
+                tickvals=correlation.index.tolist(),
+                ticktext=[axis_label(column) for column in correlation.index],
+            )
+            st.plotly_chart(correlation_figure, use_container_width=True)
             correlation_pairs = [
                 (float(correlation.loc[first, second]), first, second)
                 for index, first in enumerate(correlation.columns)
@@ -1275,7 +1440,15 @@ def render_advanced_eda() -> None:
                 st.caption("No hay pares de variables con correlación calculable en esta selección.")
             x_column = st.selectbox("Eje X", numeric_columns, key="scatter_x")
             y_column = st.selectbox("Eje Y", numeric_columns, index=min(1, len(numeric_columns) - 1), key="scatter_y")
-            st.plotly_chart(px.scatter(data, x=x_column, y=y_column, title=f"{y_column} frente a {x_column}"), use_container_width=True)
+            scatter_figure = px.scatter(
+                data,
+                x=x_column,
+                y=y_column,
+                title=f"{y_column} frente a {x_column}",
+            )
+            scatter_figure.update_xaxes(title_text=axis_label(x_column))
+            scatter_figure.update_yaxes(title_text=axis_label(y_column))
+            st.plotly_chart(scatter_figure, use_container_width=True)
             scatter_values = (
                 data[[x_column, y_column]]
                 .apply(pd.to_numeric, errors="coerce")
@@ -1331,8 +1504,20 @@ def render_advanced_eda() -> None:
             series, warnings = temporal_summary(data, date_column, value_column)
             for warning in warnings:
                 st.warning(warning.message)
+            temporal_figure = px.line(
+                series,
+                x=date_column,
+                y=value_column,
+                color="anomaly",
+                title="Evolución temporal y anomalías",
+                labels={
+                    date_column: "Fecha",
+                    value_column: axis_label(value_column),
+                    "anomaly": "Candidata a anomalía",
+                },
+            )
             st.plotly_chart(
-                px.line(series, x=date_column, y=value_column, color="anomaly", title="Evolución temporal y anomalías"),
+                temporal_figure,
                 use_container_width=True,
             )
             if series.empty:
@@ -1371,6 +1556,10 @@ def render_advanced_eda() -> None:
                         y=value_column,
                         category_orders={"day_name": weekday_names},
                         title="Perfil medio por día de la semana",
+                        labels={
+                            "day_name": "Día de la semana",
+                            value_column: axis_label(value_column),
+                        },
                     ),
                     use_container_width=True,
                 )
@@ -1413,14 +1602,20 @@ def render_advanced_eda() -> None:
                 try:
                     segmented = data.copy()
                     segmented["segment"] = segment_rows(data, cluster_columns, clusters)
+                    cluster_figure = px.scatter(
+                        segmented.dropna(subset=["segment"]),
+                        x=cluster_columns[0],
+                        y=cluster_columns[1],
+                        color="segment",
+                        title="Segmentación exploratoria",
+                        labels={
+                            cluster_columns[0]: axis_label(cluster_columns[0]),
+                            cluster_columns[1]: axis_label(cluster_columns[1]),
+                            "segment": "Segmento",
+                        },
+                    )
                     st.plotly_chart(
-                        px.scatter(
-                            segmented.dropna(subset=["segment"]),
-                            x=cluster_columns[0],
-                            y=cluster_columns[1],
-                            color="segment",
-                            title="Segmentación exploratoria",
-                        ),
+                        cluster_figure,
                         use_container_width=True,
                     )
                     cluster_points = segmented.dropna(subset=["segment"])
@@ -1512,9 +1707,10 @@ def render_lot_risk() -> None:
     )
     st.subheader("Riesgo por lote")
     st.write(
-        "Este módulo opcional prioriza lotes con fecha límite a partir de las ventas históricas de la empresa. "
-        "No usa datos de demostración. Los días sin filas cuentan como cero ventas únicamente si confirmas "
-        "que el extracto cubre todos los días del periodo."
+        "Este módulo estima qué proporción del stock podría quedar sin vender antes de la fecha límite, "
+        "a partir de ventas y datos de lote cargados. En la demostración, las ventas derivan de FreshRetailNet "
+        "y los campos de lote son supuestos sintéticos, no observaciones de una empresa. Los días sin filas "
+        "cuentan como cero ventas únicamente si confirmas que el extracto cubre todos los días del periodo."
     )
     data = _business_data()
     sales, lots = data.get(SALES_CONTRACT.key), data.get(LOTS_CONTRACT.key)

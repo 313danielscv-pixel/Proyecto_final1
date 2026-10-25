@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error

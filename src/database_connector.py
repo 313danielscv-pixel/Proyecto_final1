@@ -15,6 +15,7 @@ DEFAULT_ALLOWED_HOSTS = ("localhost", "127.0.0.1", "::1")
 SUPPORTED_DIALECTS = {
     "mysql": ("mysql+pymysql", 3306),
     "postgresql": ("postgresql+psycopg", 5432),
+    "mssql": ("mssql+pyodbc", 1433),
 }
 
 
@@ -30,6 +31,8 @@ class DatabaseConfig:
     database: str
     username: str
     password: str
+    trust_server_certificate: bool = False
+    use_windows_auth: bool = False
 
 
 def allowed_database_hosts() -> tuple[str, ...]:
@@ -50,10 +53,13 @@ def validate_database_config(
 ) -> None:
     """Reject unsupported drivers and hosts not explicitly trusted by the server."""
     if config.dialect not in SUPPORTED_DIALECTS:
-        raise DatabaseConnectionError("El conector admite MySQL y PostgreSQL.")
+        raise DatabaseConnectionError("El conector admite MySQL, PostgreSQL y SQL Server.")
     if not 1 <= config.port <= 65_535:
         raise DatabaseConnectionError("El puerto debe estar entre 1 y 65535.")
-    if not config.database.strip() or not config.username.strip() or not config.password:
+    needs_credentials = not (config.dialect == "mssql" and config.use_windows_auth)
+    if not config.database.strip() or (
+        needs_credentials and (not config.username.strip() or not config.password)
+    ):
         raise DatabaseConnectionError("Indica la base de datos, el usuario y la contraseña.")
 
     host = _normalize_host(config.host)
@@ -73,19 +79,32 @@ def create_database_engine(
     """Create an engine for one approved host without exposing credentials in a URL string."""
     validate_database_config(config, allowed_hosts)
     driver, _ = SUPPORTED_DIALECTS[config.dialect]
+    query = {}
+    connect_args = {"connect_timeout": 5}
+    if config.dialect == "mssql":
+        query = {
+            "driver": "ODBC Driver 18 for SQL Server",
+            "Encrypt": "yes",
+        }
+        if config.trust_server_certificate:
+            query["TrustServerCertificate"] = "yes"
+        if config.use_windows_auth:
+            query["Trusted_Connection"] = "yes"
+        connect_args = {"timeout": 5}
     url = URL.create(
         driver,
-        username=config.username,
-        password=config.password,
+        username=None if config.use_windows_auth else config.username,
+        password=None if config.use_windows_auth else config.password,
         host=_normalize_host(config.host),
         port=config.port,
         database=config.database,
+        query=query,
     )
     try:
         return create_engine(
             url,
             pool_pre_ping=True,
-            connect_args={"connect_timeout": 5},
+            connect_args=connect_args,
         )
     except (ImportError, SQLAlchemyError, ValueError) as error:
         raise DatabaseConnectionError(

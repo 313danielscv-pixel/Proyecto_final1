@@ -28,7 +28,7 @@ La plataforma no exige un esquema único ni datos de caducidad. Cada módulo se 
 
 - [Plantillas y contratos](docs/06_contratos_de_datos.md).
 - [Plantillas CSV](data/templates/).
-- [Guion para la presentación](docs/04_guion_presentacion.md) y [lista de comprobación](docs/05_lista_de_comprobacion.md).
+- [Lista de comprobación](docs/05_lista_de_comprobacion.md).
 
 ## Datos y transparencia
 
@@ -37,10 +37,26 @@ La plataforma no exige un esquema único ni datos de caducidad. Cada módulo se 
 | FreshRetailNet-50K | Evaluación de previsión de demanda. | Datos reales, licencia CC BY 4.0. |
 | FreshMarket | Caso vertical de merma por lote. | Piloto sintético incluido en el repositorio. |
 | Eurostat `cei_pc035` | Contexto del caso alimentario. | Indicador público agregado. |
+| Eurostat `sts_trtu_m` | Contexto reciente del comercio alimentario en España. | Índice mensual agregado; última observación disponible: agosto de 2026. |
 
 La documentación de la fuente real, el método temporal, métricas y límites está en [07_datos_reales_y_demanda.md](docs/07_datos_reales_y_demanda.md).
 
 No se afirma que FreshRetailNet-50K incluya costes internos, caducidades o mermas de una empresa usuaria. Los cálculos de escenarios son estimaciones y nunca ahorros realizados.
+
+### Preparación y resultados demostrables
+
+Para el análisis empresarial, las ventas se agregan por producto y día. Las filas con fecha, producto o unidades no válidas se excluyen de los cálculos de demanda y siguen contabilizadas en la vista de calidad; los duplicados se informan, pero no se eliminan automáticamente. Las fechas sin registros se consideran desconocidas salvo que se confirme que el extracto cubre todo el periodo.
+
+En la demo, el producto FRN-300 registra una media de 16,20 unidades/día en los últimos 7 días frente a 12,51 en 30 días (+3,69; +29,5 %) hasta el 25/06/2024. Es una señal histórica para revisar, no una predicción ni evidencia de rotura; inventario, costes y lotes de la demo son supuestos sintéticos.
+
+La evaluación de demanda selecciona de forma determinista 100 series de FreshRetailNet-50K y compara dos métodos sobre el mismo holdout temporal de 7 días (700 observaciones):
+
+| Método | MAE | RMSE |
+|---|---:|---:|
+| Referencia estacional (venta de hace 7 días) | 0,5109 | 0,8352 |
+| Media móvil de 7 días | 0,4813 | 0,7847 |
+
+MAE y RMSE resumen el tamaño medio del error, en las unidades de venta del conjunto; valores menores son mejores en esta comparación. La media móvil obtiene menor error en estas series, pero el resultado no garantiza precisión en otra empresa. El método, la licencia y las limitaciones están desarrollados en [Datos reales y previsión](docs/07_datos_reales_y_demanda.md).
 
 ## Aplicación
 
@@ -59,9 +75,23 @@ El EDA avanzado solo activa cada técnica si la muestra y los tipos de datos la 
 
 Para la demanda de inventario y lotes, ResQ divide las unidades por los días naturales desde la primera fecha registrada de cada producto hasta el final del extracto, solo cuando se confirma que este cubre todos los días del periodo. Sin esa confirmación, la media usa fechas con registro y el módulo de riesgo por lote no calcula estimaciones. Un producto con stock positivo y demanda registrada igual a cero se marca como sobrestock.
 
+### Estructura del repositorio
+
+- `app.py`: punto de entrada de Streamlit.
+- `src/`: ingesta, análisis, interfaz, informes y conectores.
+- `data/demo/`: datos reproducibles de demostración, con procedencia y unidades.
+- `data/processed/`: métricas y resultados derivados versionados.
+- `data/external/`: contexto público y ubicación documentada para datos descargados; los Parquet brutos no se versionan.
+- `docs/`: caso de uso, datos, metodología y contratos.
+- `tests/`: pruebas automatizadas de lógica e interfaz.
+
+### Mejoras siguientes
+
+Antes de operar con datos de una empresa, habría que validar los contratos y las unidades con responsables del negocio, comparar métodos de demanda con su histórico mediante cortes temporales, calibrar cualquier probabilidad con resultados representativos y medir las decisiones en un piloto controlado. También conviene vigilar cambios de calidad y distribución. Estas tareas son una hoja de ruta, no capacidades ya validadas en producción.
+
 ### Conectar una base de datos
 
-En **Datos y calidad** puedes elegir **Base de datos** para conectar MySQL o PostgreSQL, listar tablas y vistas, previsualizar una tabla y cargarla en la sesión para el análisis correspondiente. **Actualizar datos** vuelve a consultar la fuente; ResQ no escribe cambios en la base conectada. El conector solo construye consultas de lectura y el usuario de la base debe tener permisos `SELECT` únicamente.
+En **Datos y calidad** puedes elegir **Base de datos** para conectar MySQL, PostgreSQL o Microsoft SQL Server, listar tablas y vistas, previsualizar una tabla y cargarla en la sesión para el análisis correspondiente. **Actualizar datos** vuelve a consultar la fuente; ResQ no escribe cambios en la base conectada. El conector solo construye consultas de lectura y la cuenta debe tener permisos `SELECT` únicamente. SQL Server requiere `pyodbc` y el controlador ODBC 18 de Microsoft; habilita TCP/IP y utiliza el puerto del servidor (por defecto, 1433). Puedes usar autenticación de Windows —con los permisos de la cuenta que ejecuta ResQ— o una cuenta SQL. La conexión cifra el tráfico y valida el certificado; confía en un certificado autofirmado solo para una prueba local. SQL Server Management Studio (SSMS) es el cliente de administración; también debe existir un servicio de SQL Server activo.
 
 Por seguridad, el servidor solo acepta por defecto conexiones a `localhost`, `127.0.0.1` y `::1`. Para autorizar otro host de confianza, configura `RESQ_DB_ALLOWED_HOSTS` en el entorno del proceso Streamlit. Las credenciales se mantienen solo en memoria durante la sesión; no las añadas al repositorio. El conector limita las importaciones a 100.000 filas y rechaza una tabla que supere el límite elegido.
 
@@ -95,18 +125,22 @@ En **Cargar datos empresa**, pulsa **“Cargar demostración con demanda real”
 
 Las ventas proceden de la fuente real documentada. El inventario, los costes y la fecha límite se etiquetan como supuestos de escenario porque FreshRetailNet-50K no publica esos datos internos.
 
-![Panel de análisis exploratorio de FreshMarket](docs/eda_dashboard.png)
+Las dos capturas siguientes corresponden al prototipo histórico ResQData AI/FreshMarket y usan datos sintéticos del piloto. Se incluyen para explicar la evolución del proyecto, no como pantallas de ResQ Intelligence. La segunda captura muestra el clasificador antiguo y su probabilidad estimada; el módulo actual de riesgo por lote calcula una proporción estimada de stock no vendido y no presenta una probabilidad calibrada.
 
-![Predicción especializada por lote](docs/prediction_workflow.png)
+![Panel histórico de análisis de FreshMarket con datos sintéticos; no es la interfaz actual](docs/eda_dashboard.png)
+
+![Flujo histórico del clasificador por lote del piloto sintético; no representa el cálculo actual](docs/prediction_workflow.png)
 
 ## Ejecución local
 
-Requiere Python 3.11 o superior.
+Requiere Python 3.11 o superior. Desde la carpeta raíz del repositorio:
 
 ```powershell
 python -m pip install -r requirements.txt
 streamlit run app.py
 ```
+
+El primer comando instala las dependencias declaradas; el segundo inicia la aplicación en el navegador. Para arrancar la app en sesiones posteriores basta con `streamlit run app.py`.
 
 El caso FreshMarket genera sus artefactos locales si faltan. La app no almacena los CSV cargados por una empresa fuera de la sesión del navegador.
 

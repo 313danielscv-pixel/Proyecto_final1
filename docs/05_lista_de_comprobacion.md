@@ -15,7 +15,6 @@ Esta matriz conecta el proyecto final con una evidencia concreta. La app que se 
 | Diferencia entre real y sintético | [Datos, preparación y EDA](02_datos_y_eda.md): FreshRetailNet real; datos de escenario y FreshMarket sintéticos o supuestos. |
 | App demostrable | [`app.py`](../app.py): navegación lateral, portada, carga, EDA, inventario, lote, escenarios, fuentes, informe y metodología. |
 | Informe exportable | [`src/reporting.py`](../src/reporting.py): resumen Markdown de calidad, resultados disponibles, procedencia y supuestos; no exporta registros originales. |
-| Explicación oral | [Guion de presentación](04_guion_presentacion.md): 10 diapositivas, demo de 3:30 y preguntas previsibles. |
 | Dependencias y ejecución | [`requirements.txt`](../requirements.txt) y [README](../README.md). |
 | Pruebas automatizadas | [`tests/`](../tests/): contratos, ingesta, inteligencia, demo, FreshMarket y EDA avanzado. |
 

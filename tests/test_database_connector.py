@@ -26,7 +26,11 @@ def _create_sqlite_engine():
 
 @pytest.mark.parametrize(
     ("dialect", "expected_driver", "port"),
-    [("mysql", "mysql+pymysql", 3306), ("postgresql", "postgresql+psycopg", 5432)],
+    [
+        ("mysql", "mysql+pymysql", 3306),
+        ("postgresql", "postgresql+psycopg", 5432),
+        ("mssql", "mssql+pyodbc", 1433),
+    ],
 )
 def test_database_config_uses_supported_driver_and_keeps_password_masked(
     dialect: str,
@@ -81,8 +85,59 @@ def test_database_config_rejects_unsupported_dialects() -> None:
         password="secret",
     )
 
-    with pytest.raises(DatabaseConnectionError, match="MySQL y PostgreSQL"):
+    with pytest.raises(DatabaseConnectionError, match="SQL Server"):
         validate_database_config(config, allowed_hosts=("localhost",))
+
+
+def test_sql_server_connection_uses_encryption_and_optional_certificate_trust() -> None:
+    config = DatabaseConfig(
+        dialect="mssql",
+        host="localhost",
+        port=1433,
+        database="resq",
+        username="reader",
+        password="secret",
+    )
+
+    engine = create_database_engine(config, allowed_hosts=("localhost",))
+    try:
+        assert engine.url.query["driver"] == "ODBC Driver 18 for SQL Server"
+        assert engine.url.query["Encrypt"] == "yes"
+        assert "TrustServerCertificate" not in engine.url.query
+    finally:
+        engine.dispose()
+
+    windows_auth_config = DatabaseConfig(
+        dialect="mssql",
+        host="localhost",
+        port=1433,
+        database="resq",
+        username="",
+        password="",
+        use_windows_auth=True,
+    )
+    engine = create_database_engine(windows_auth_config, allowed_hosts=("localhost",))
+    try:
+        assert engine.url.username is None
+        assert engine.url.password is None
+        assert engine.url.query["Trusted_Connection"] == "yes"
+    finally:
+        engine.dispose()
+
+    trusted_config = DatabaseConfig(
+        dialect="mssql",
+        host="localhost",
+        port=1433,
+        database="resq",
+        username="reader",
+        password="secret",
+        trust_server_certificate=True,
+    )
+    engine = create_database_engine(trusted_config, allowed_hosts=("localhost",))
+    try:
+        assert engine.url.query["TrustServerCertificate"] == "yes"
+    finally:
+        engine.dispose()
 
 
 def test_read_only_helpers_list_and_read_a_bounded_table() -> None:
@@ -108,6 +163,15 @@ def test_streamlit_exposes_the_database_source_mode() -> None:
     assert next(widget for widget in app.selectbox if widget.label == "Motor").options == [
         "MySQL",
         "PostgreSQL",
+        "SQL Server",
+    ]
+    next(widget for widget in app.selectbox if widget.label == "Motor").set_value(
+        "SQL Server"
+    ).run()
+    assert not app.exception
+    assert next(widget for widget in app.radio if widget.key == "database_auth_mode").options == [
+        "Windows",
+        "SQL Server",
     ]
 
 

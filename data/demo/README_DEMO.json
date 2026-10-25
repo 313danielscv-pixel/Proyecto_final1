@@ -14,5 +14,25 @@
     "inventory": "Stock, lead time and safety stock are demonstration assumptions.",
     "costs": "Unit cost, price and holding cost are demonstration assumptions.",
     "lots": "Lot stock cover and expiry dates vary by lot to demonstrate distinct risk levels."
+  },
+  "column_units": {
+    "sales": {
+      "quantity": "unidades"
+    },
+    "inventory": {
+      "on_hand_units": "unidades",
+      "unit_cost": "€/unidad",
+      "reorder_lead_days": "días",
+      "minimum_stock": "unidades"
+    },
+    "costs": {
+      "unit_cost": "€/unidad",
+      "unit_price": "€/unidad",
+      "holding_cost_per_unit_day": "€/unidad/día"
+    },
+    "lots": {
+      "stock_available": "unidades",
+      "unit_cost": "€/unidad"
+    }
   }
 }

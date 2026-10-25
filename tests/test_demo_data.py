@@ -25,7 +25,7 @@ def _synthetic_training_data() -> pd.DataFrame:
 
 
 def test_demo_bundle_contains_real_and_scenario_files_without_reading_parquet(monkeypatch, tmp_path) -> None:
-    def fail_read_parquet(*args, **kwargs):
+    def fail_read_parquet(*_args, **_kwargs):
         raise AssertionError("La prueba de la demo no debe depender de Parquet.")
 
     monkeypatch.setattr(pd, "read_parquet", fail_read_parquet)

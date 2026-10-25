@@ -11,6 +11,12 @@ El módulo de demanda real utiliza **FreshRetailNet-50K**, publicado por Dingdon
 
 Los datos contienen ventas de productos perecederos, tienda, producto, descuentos, promociones, festivos, variables meteorológicas y anotaciones de rotura de stock. No contienen los costes internos, precios finales, caducidades ni mermas de una empresa usuaria.
 
+Las particiones locales cubren del **28 de marzo al 2 de julio de 2024**: 4.500.000 filas de entrenamiento y 350.000 de evaluación en la fuente completa. Son suficientes para demostrar y comparar métodos de previsión con un corte temporal, pero son datos históricos y no representan la demanda actual de una empresa en 2026.
+
+Eurostat `cei_pc035` se utiliza como contexto nacional del desperdicio alimentario. Además, el proyecto incorpora el índice mensual `sts_trtu_m` para ventas minoristas de alimentos, bebidas y tabaco en España. La consulta oficial se guarda en `data/external/eurostat_food_retail_volume_spain.json` y se puede actualizar con `python -m src.fetch_eurostat_retail_context`; el último dato disponible en la descarga del 24 de octubre de 2026 es agosto de 2026 (índice 109,9; 2021=100).
+
+Estos indicadores nacionales aportan actualidad y contexto, pero no tienen el detalle tienda-producto-día necesario para unirlos a FreshRetailNet o usarlos como predictores. Se mantienen como referencias separadas. La previsión por producto sigue siendo una evaluación histórica, no una previsión actual de una empresa.
+
 ## Preparación
 
 `src.real_demand` selecciona de manera determinista hasta 100 combinaciones de tienda y producto con historial suficiente. Compara dos métodos sobre los mismos siete días posteriores al entrenamiento:
@@ -26,7 +32,16 @@ El conjunto bruto no se incluye en el repositorio por su tamaño. La plataforma 
 python -m src.real_demand
 ```
 
-Antes de ejecutar el comando deben descargarse las particiones oficiales en `data/external/freshretailnet/`. La instalación con `python -m pip install -r requirements.txt` incluye `pyarrow`, necesario para leer Parquet.
+Para regenerar la evaluación:
+
+1. Abre la [fuente oficial de FreshRetailNet-50K](https://huggingface.co/datasets/Dingdong-Inc/FreshRetailNet-50K) y descarga `train.parquet` y `eval.parquet` de la misma versión.
+2. Guarda ambos archivos en `data/external/freshretailnet/`, con esos nombres exactos. La carpeta se crea automáticamente si hace falta.
+3. Instala dependencias con `python -m pip install -r requirements.txt`.
+4. Ejecuta `python -m src.real_demand`.
+
+Los archivos Parquet brutos no se versionan por su tamaño. La demo reproducible usa el CSV de ventas derivado incluido en `data/demo/`; el inventario, los costes y los lotes de esa demo son supuestos sintéticos.
+
+El contexto Eurostat se obtiene con `python -m src.fetch_eurostat_context`; el resultado registra fuente, licencia y fecha de descarga UTC. Su reutilización requiere atribuir a Eurostat (Unión Europea), conforme a su [política de reutilización](https://ec.europa.eu/eurostat/help/copyright-notice).
 
 ## Evaluación
 

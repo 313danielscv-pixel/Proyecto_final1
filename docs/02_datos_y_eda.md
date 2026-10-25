@@ -5,9 +5,14 @@
 | Fuente | Uso en el proyecto | Naturaleza y límite |
 |---|---|---|
 | Archivos CSV/Excel de empresa | Análisis de ventas, inventario, costes, lotes y EDA libre | Datos aportados por el usuario; se conservan en la sesión de Streamlit, no en el repositorio. |
-| FreshRetailNet-50K | Demostración y evaluación de una referencia de demanda | Ventas reales publicadas por Dingdong Inc.; licencia declarada CC BY 4.0. No contiene los costes ni las caducidades de la empresa usuaria. |
+| FreshRetailNet-50K | Demostración y evaluación de una referencia de demanda | Ventas reales publicadas por Dingdong Inc.; licencia declarada CC BY 4.0; particiones descargadas el 20/10/2026. No contiene los costes ni las caducidades de la empresa usuaria. |
 | Piloto FreshMarket | Desarrollo y demostración histórica del caso de merma | Datos sintéticos; no describen una empresa real ni se usan como datos de clientes. |
-| Eurostat `cei_pc035` | Contexto agregado del desperdicio alimentario | Estadística pública de toda la cadena de valor; no mide la merma de una tienda concreta ni alimenta el cálculo de riesgo por lote. |
+| Eurostat `cei_pc035` | Contexto agregado del desperdicio alimentario | Indicador público de España para 2022, descargado el 24/10/2026 y reutilizado con atribución a Eurostat bajo CC BY 4.0. Cubre toda la cadena de valor; no mide la merma de una tienda concreta ni alimenta el cálculo de riesgo por lote. |
+| Eurostat `sts_trtu_m` | Contexto reciente de la actividad minorista de alimentos | Índice mensual de volumen para España, alimentos/bebidas/tabaco, con ajuste de calendario; última observación disponible: agosto de 2026. Es contexto agregado, no ventas por tienda o producto ni entrada al modelo. |
+
+El piloto FreshMarket y los datos operativos de la demo se generan dentro del proyecto con supuestos sintéticos; no proceden de empresas reales ni de una fuente externa.
+
+El contexto Eurostat se mantiene separado de FreshRetailNet: el índice mensual tiene granularidad nacional y sectorial, no la clave tienda-producto-día necesaria para unirlo a las ventas ni para usarlo como predictor.
 
 Los detalles de FreshRetailNet, sus filtros, evaluación y licencia están en [Datos reales y previsión](07_datos_reales_y_demanda.md).
 
@@ -53,6 +58,8 @@ La pestaña **EDA avanzado** adapta los análisis a las columnas disponibles:
 - **Tiempo:** agregación diaria, evolución, perfil exploratorio por día de la semana y anomalías mediante z-score cuando hay suficientes fechas.
 - **Deriva:** PSI para comparar dos periodos con muestras suficientes; señala cambios que merecen revisión, no su causa.
 - **Robustez exploratoria:** intervalo bootstrap del 95 % para la media y segmentación K-Means de variables numéricas.
+
+En EDA avanzado se pueden declarar las unidades de las columnas numéricas. Los cuatro conjuntos de demostración precargan las unidades documentadas en [`README_DEMO.json`](../data/demo/README_DEMO.json). Las etiquetas se aplican a los ejes sin convertir los valores; si una unidad no se especifica, el gráfico lo indica como «unidad no especificada». Para archivos empresariales hay que contrastar las unidades introducidas con la documentación del archivo antes de interpretar o presentar los gráficos.
 
 Cada técnica tiene requisitos de muestra y avisos. Bootstrap requiere al menos 10 valores válidos y supone observaciones independientes; no cuantifica correctamente la incertidumbre de una serie autocorrelacionada. PSI exige al menos 20 observaciones por periodo. K-Means necesita un mínimo de cinco filas válidas por segmento solicitado y no admite valores infinitos. La heurística de posible fuga de información se basa en nombres de columna y no confirma una fuga real.
 
