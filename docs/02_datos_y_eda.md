@@ -54,7 +54,6 @@ La pestaña **EDA avanzado** adapta los análisis a las columnas disponibles:
 
 - **Perfil y calidad:** tipos, valores nulos, cardinalidad, ejemplos, duplicados y alertas genéricas.
 - **Distribución:** media, mediana, desviación estándar, cuartiles, asimetría, histogramas, diagramas de caja y posibles atípicos por IQR.
-- **Relaciones:** correlaciones de variables numéricas, dispersión y contraste Mann–Whitney para una variable numérica entre dos grupos.
 - **Tiempo:** agregación diaria, evolución, perfil exploratorio por día de la semana y anomalías mediante z-score cuando hay suficientes fechas.
 - **Deriva:** PSI para comparar dos periodos con muestras suficientes; señala cambios que merecen revisión, no su causa.
 - **Robustez exploratoria:** intervalo bootstrap del 95 % para la media y segmentación K-Means de variables numéricas.

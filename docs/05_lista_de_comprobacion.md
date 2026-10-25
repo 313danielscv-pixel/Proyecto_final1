@@ -7,7 +7,7 @@ Esta matriz conecta el proyecto final con una evidencia concreta. La app que se 
 | Problema y usuario definidos | [Caso de uso](01_caso_de_uso.md): plataforma B2B para responsables de operaciones, compras o finanzas. |
 | Ingesta flexible | [`src/ingestion.py`](../src/ingestion.py): CSV/Excel por contrato y carga libre que conserva columnas. |
 | Calidad de datos | [`src/platform_ui.py`](../src/platform_ui.py): informes de campos requeridos, conversiones inválidas, negativos y duplicados. |
-| EDA profesional explicable | [`src/platform_ui.py`](../src/platform_ui.py) y [`src/business_intelligence.py`](../src/business_intelligence.py): EDA empresarial filtrable con tendencia, productos, distribución, temporalidad, calidad y hallazgos; [`src/advanced_eda.py`](../src/advanced_eda.py): relaciones, Mann–Whitney, PSI, bootstrap y segmentación. |
+| EDA profesional explicable | [`src/platform_ui.py`](../src/platform_ui.py) y [`src/business_intelligence.py`](../src/business_intelligence.py): EDA empresarial filtrable con tendencia, productos, distribución, temporalidad, calidad y hallazgos; [`src/advanced_eda.py`](../src/advanced_eda.py): perfilado, PSI, bootstrap y segmentación. |
 | Inteligencia empresarial | [`src/business_intelligence.py`](../src/business_intelligence.py): demanda por producto-día, inventario, capital expuesto y escenarios. |
 | Sensibilidad de escenarios | [`scenario_sensitivity`](../src/business_intelligence.py): tabla de supuestos de precio y demanda mostrada como mapa de calor. |
 | Riesgo opcional por lote | [`src/lot_risk.py`](../src/lot_risk.py): estimación del stock no vendido con historial empresarial y límites visibles. |

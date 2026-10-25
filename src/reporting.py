@@ -241,7 +241,7 @@ def build_analysis_report(
         [
             "## Limitaciones",
             "",
-            "- Los análisis describen los datos cargados; correlación y anomalías no demuestran causalidad.",
+            "- Los análisis describen los datos cargados; sus resultados y anomalías no demuestran causalidad.",
             "- Los resultados dependen de la calidad, cobertura temporal y reglas de negocio de los archivos.",
             "- La demo distingue las ventas derivadas de FreshRetailNet de los supuestos de inventario, costes y lotes.",
             "- Los archivos cargados permanecen en la sesión; este informe se genera en memoria al solicitar la descarga.",

@@ -6,7 +6,6 @@ from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
-from scipy import stats
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
@@ -90,32 +89,6 @@ def bootstrap_mean_interval(values: pd.Series, iterations: int = 500, confidence
     means = np.array([generator.choice(clean, size=len(clean), replace=True).mean() for _ in range(iterations)])
     alpha = (1 - confidence) / 2
     return float(clean.mean()), float(np.quantile(means, alpha)), float(np.quantile(means, 1 - alpha))
-
-
-def correlation_matrix(data: pd.DataFrame) -> pd.DataFrame:
-    """Return Pearson correlations when at least two numeric fields exist."""
-    numeric = data.select_dtypes(include="number")
-    if numeric.shape[1] < 2:
-        return pd.DataFrame()
-    return numeric.corr(numeric_only=True)
-
-
-def group_difference(data: pd.DataFrame, numeric_column: str, group_column: str) -> dict[str, float | str]:
-    """Run a robust two-group Mann-Whitney comparison with an effect size."""
-    groups = data[[numeric_column, group_column]].dropna().groupby(group_column)[numeric_column]
-    if len(groups) != 2:
-        raise ValueError("Selecciona una categoría con exactamente dos grupos no vacíos.")
-    group_iterator = iter(groups)
-    first_name, first_values = next(group_iterator)
-    second_name, second_values = next(group_iterator)
-    statistic, p_value = stats.mannwhitneyu(first_values, second_values, alternative="two-sided")
-    effect = 1 - (2 * statistic / (len(first_values) * len(second_values)))
-    return {
-        "grupo_1": str(first_name),
-        "grupo_2": str(second_name),
-        "p_valor": float(p_value),
-        "tamano_efecto_rank_biserial": float(effect),
-    }
 
 
 def temporal_summary(data: pd.DataFrame, date_column: str, value_column: str) -> tuple[pd.DataFrame, list[AnalysisWarning]]:

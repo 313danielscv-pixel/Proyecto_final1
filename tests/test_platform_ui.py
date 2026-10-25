@@ -49,9 +49,17 @@ def test_advanced_eda_applies_declared_units_to_chart_axes() -> None:
     )
     app.run()
 
+    numeric_selector = next(
+        widget for widget in app.selectbox if widget.label == "Variable numérica"
+    )
     figures = [json.loads(chart.proto.spec) for chart in app.get("plotly_chart")]
     serialized_figures = json.dumps(figures, ensure_ascii=False)
     assert "units (unidad no especificada)" in serialized_figures
+
+    numeric_selector.set_value("revenue")
+    app.run()
+    figures = [json.loads(chart.proto.spec) for chart in app.get("plotly_chart")]
+    serialized_figures = json.dumps(figures, ensure_ascii=False)
     assert "revenue (unidad no especificada)" in serialized_figures
 
     units_by_widget = {
@@ -64,8 +72,16 @@ def test_advanced_eda_applies_declared_units_to_chart_axes() -> None:
 
     figures = [json.loads(chart.proto.spec) for chart in app.get("plotly_chart")]
     serialized_figures = json.dumps(figures, ensure_ascii=False)
-    assert "units (unidades/día)" in serialized_figures
     assert "revenue (€)" in serialized_figures
+    numeric_selector = next(
+        widget for widget in app.selectbox if widget.label == "Variable numérica"
+    )
+    numeric_selector.set_value("units")
+    app.run()
+
+    figures = [json.loads(chart.proto.spec) for chart in app.get("plotly_chart")]
+    serialized_figures = json.dumps(figures, ensure_ascii=False)
+    assert "units (unidades/día)" in serialized_figures
 
     next(widget for widget in app.button if widget.label == "Crear segmentos").click()
     app.run()
@@ -163,6 +179,12 @@ def test_demo_eda_preloads_units_for_each_dataset() -> None:
     )
     app.run()
 
+    assert [tab.label for tab in app.tabs] == [
+        "Perfil y calidad",
+        "Distribuciones",
+        "Tiempo y anomalías",
+        "Robustez",
+    ]
     dataset_selector = next(
         widget for widget in app.selectbox if widget.label == "Conjunto de datos"
     )
@@ -179,6 +201,12 @@ def test_demo_eda_preloads_units_for_each_dataset() -> None:
             for widget in app.text_input
         }
         assert units == DEMO_COLUMN_UNITS[dataset_name]
+        numeric_selector = next(
+            widget for widget in app.selectbox if widget.label == "Variable numérica"
+        )
+        selected_column = next(iter(units))
+        numeric_selector.set_value(selected_column)
+        app.run()
         figures = [json.loads(chart.proto.spec) for chart in app.get("plotly_chart")]
         serialized_figures = json.dumps(figures, ensure_ascii=False)
         for figure in figures:
@@ -188,8 +216,7 @@ def test_demo_eda_preloads_units_for_each_dataset() -> None:
                 layout.get(axis, {}).get("title", {}).get("text")
                 for axis in ("xaxis", "yaxis")
             )
-        for column, unit in units.items():
-            assert f"{column} ({unit})" in serialized_figures
+        assert f"{selected_column} ({units[selected_column]})" in serialized_figures
         assert "unidad no especificada" not in serialized_figures
     assert len(app.exception) == 0
 

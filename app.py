@@ -33,7 +33,7 @@ from src.platform_ui import (
 PAGE_DESCRIPTIONS = {
     "Inicio": "Una vista rápida de los datos disponibles y de los indicadores respaldados por ellos.",
     "Datos y calidad": "Carga CSV o Excel, o conecta una base de datos de solo lectura; revisa los campos antes de analizar.",
-    "Análisis exploratorio": "Explora demanda, distribuciones, relaciones y comportamiento temporal.",
+    "Análisis exploratorio": "Explora demanda, distribuciones y comportamiento temporal.",
     "Demanda": "Consulta la evaluación de una referencia de demanda sobre datos públicos reales.",
     "Inventario y rentabilidad": "Revisa cobertura, capital en inventario y señales de rotura o sobrestock.",
     "Riesgo por lote": "Prioriza lotes con fecha límite usando las ventas históricas cargadas.",

@@ -30,7 +30,7 @@ La matriz responde a “¿qué pasaría si…?” bajo las fórmulas y valores i
 
 ## EDA y validación
 
-Los análisis estadísticos son exploratorios: resumen distribuciones, diferencias entre dos grupos, relaciones, cambios temporales y estabilidad de distribuciones. El bootstrap estima un intervalo de la media bajo el supuesto de independencia. PSI compara distribuciones entre dos periodos. K-Means agrupa observaciones según las variables elegidas. Ninguno identifica por sí solo una causa ni valida una intervención empresarial.
+Los análisis estadísticos son exploratorios: resumen distribuciones, cambios temporales y estabilidad de distribuciones. El bootstrap estima un intervalo de la media bajo el supuesto de independencia. PSI compara distribuciones entre dos periodos. K-Means agrupa observaciones según las variables elegidas. Ninguno identifica por sí solo una causa ni valida una intervención empresarial.
 
 ## Continuidad del piloto ResQData/FreshMarket
 

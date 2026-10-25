@@ -15,7 +15,7 @@ El caso FreshMarket se conserva como demostración especializada de perecederos.
 - Detección de campos ausentes, fechas o números inválidos, negativos y duplicados.
 - EDA empresarial con filtros por periodo y producto, medias móviles, ranking de productos, distribución, patrones temporales, calidad y hallazgos con límites explícitos.
 - Chat contextual sobre ResQ y los datos de sesión, ejecutado exclusivamente mediante Ollama local.
-- EDA avanzado reutilizable: perfilado, nulos, duplicados, valores negativos, distribuciones, atípicos, correlaciones, anomalías temporales, bootstrap, deriva y segmentación exploratoria.
+- EDA avanzado reutilizable: perfilado, nulos, duplicados, valores negativos, distribuciones, atípicos, anomalías temporales, bootstrap, deriva y segmentación exploratoria.
 - Cobertura de inventario, riesgo de rotura, sobrestock y capital expuesto.
 - Riesgo por lote opcional para empresas con stock por lote y fecha límite, con demanda media por día natural y proporción estimada de stock sin vender.
 - Simulador de escenarios de precio, volumen y coste de almacenamiento.

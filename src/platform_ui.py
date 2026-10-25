@@ -29,8 +29,6 @@ from src.business_intelligence import (
 )
 from src.advanced_eda import (
     bootstrap_mean_interval,
-    correlation_matrix,
-    group_difference,
     numeric_summary,
     population_stability_index,
     profile_data,
@@ -1151,8 +1149,8 @@ def render_advanced_eda() -> None:
         f"{_period_label(data)}."
     )
     st.info(
-        "Empieza por **Perfil y calidad**. Usa distribuciones y relaciones para investigar patrones; "
-        "termina revisando las limitaciones antes de interpretar el resultado."
+        "Empieza por **Perfil y calidad**. Explora distribuciones, cambios temporales y robustez; "
+        "termina revisando las limitaciones antes de interpretar los resultados."
     )
     numeric_columns = [
         column
@@ -1162,7 +1160,6 @@ def render_advanced_eda() -> None:
         .notna()
         .any()
     ]
-    categorical_columns = [column for column in data.columns if column not in numeric_columns]
     unit_labels: dict[object, str] = {}
     if numeric_columns:
         with st.expander("Unidades de medida", expanded=False):
@@ -1194,8 +1191,8 @@ def render_advanced_eda() -> None:
     def axis_label(column: object) -> str:
         return _eda_axis_label(column, unit_labels.get(column, ""))
 
-    profile_tab, univariate_tab, relations_tab, time_tab, robustness_tab = st.tabs(
-        ["Perfil y calidad", "Distribuciones", "Relaciones", "Tiempo y anomalías", "Robustez"]
+    profile_tab, univariate_tab, time_tab, robustness_tab = st.tabs(
+        ["Perfil y calidad", "Distribuciones", "Tiempo y anomalías", "Robustez"]
     )
     with profile_tab:
         report = quality_summary(data)
@@ -1282,105 +1279,6 @@ def render_advanced_eda() -> None:
                         f"{_format_eda_number(float(third_quartile))}. La regla IQR marca {outlier_count} "
                         "candidato(s) extremo(s), que conviene revisar y no son errores confirmados."
                     )
-    with relations_tab:
-        correlation = correlation_matrix(data[numeric_columns])
-        if correlation.empty:
-            st.info("Se necesitan al menos dos columnas numéricas para correlaciones.")
-        else:
-            correlation_figure = px.imshow(
-                correlation,
-                text_auto=".2f",
-                title="Correlación entre variables numéricas",
-                labels={
-                    "x": "Variable y unidad",
-                    "y": "Variable y unidad",
-                    "color": "Correlación (r)",
-                },
-            )
-            correlation_tick_labels = [
-                axis_label(column) for column in correlation.columns
-            ]
-            correlation_figure.update_xaxes(
-                tickmode="array",
-                tickvals=correlation.columns.tolist(),
-                ticktext=correlation_tick_labels,
-                tickangle=-35,
-            )
-            correlation_figure.update_yaxes(
-                tickmode="array",
-                tickvals=correlation.index.tolist(),
-                ticktext=[axis_label(column) for column in correlation.index],
-            )
-            st.plotly_chart(correlation_figure, use_container_width=True)
-            correlation_pairs = [
-                (float(correlation.loc[first, second]), first, second)
-                for index, first in enumerate(correlation.columns)
-                for second in correlation.columns[index + 1 :]
-                if pd.notna(correlation.loc[first, second])
-            ]
-            if correlation_pairs:
-                strongest_correlation = max(correlation_pairs, key=lambda pair: abs(pair[0]))
-                direction = "positiva" if strongest_correlation[0] > 0 else "negativa"
-                st.caption(
-                    f"La relación lineal más intensa es entre {strongest_correlation[1]} y "
-                    f"{strongest_correlation[2]} (r={strongest_correlation[0]:.2f}, {direction}). "
-                    f"Se calcula con {len(data[[strongest_correlation[1], strongest_correlation[2]]].dropna())} "
-                    "filas completas. "
-                    "Describe asociación en estas filas; no demuestra causalidad."
-                )
-            else:
-                st.caption("No hay pares de variables con correlación calculable en esta selección.")
-            x_column = st.selectbox("Eje X", numeric_columns, key="scatter_x")
-            y_column = st.selectbox("Eje Y", numeric_columns, index=min(1, len(numeric_columns) - 1), key="scatter_y")
-            scatter_figure = px.scatter(
-                data,
-                x=x_column,
-                y=y_column,
-                title=f"{y_column} frente a {x_column}",
-            )
-            scatter_figure.update_xaxes(title_text=axis_label(x_column))
-            scatter_figure.update_yaxes(title_text=axis_label(y_column))
-            st.plotly_chart(scatter_figure, use_container_width=True)
-            scatter_values = (
-                data[[x_column, y_column]]
-                .apply(pd.to_numeric, errors="coerce")
-                .replace([float("inf"), float("-inf")], float("nan"))
-                .dropna()
-            )
-            if (
-                len(scatter_values) >= 2
-                and scatter_values[x_column].nunique() > 1
-                and scatter_values[y_column].nunique() > 1
-            ):
-                scatter_correlation = float(scatter_values[x_column].corr(scatter_values[y_column]))
-                if scatter_correlation > 0:
-                    scatter_direction = "tienden a aumentar juntos"
-                elif scatter_correlation < 0:
-                    scatter_direction = "uno tiende a bajar cuando el otro sube"
-                else:
-                    scatter_direction = "no muestran una relación lineal en esta selección"
-                st.caption(
-                    f"En {len(scatter_values):,} filas completas, la correlación entre {x_column} y "
-                    f"{y_column} es r={scatter_correlation:.2f}: {scatter_direction}. "
-                    "Es una asociación observada, no prueba que una variable cause la otra."
-                )
-            else:
-                st.caption(
-                    f"Solo hay {len(scatter_values):,} filas completas o variación insuficiente para "
-                    f"comparar {x_column} y {y_column}."
-                )
-        valid_groups = [column for column in categorical_columns if data[column].nunique(dropna=True) == 2]
-        if numeric_columns and valid_groups:
-            numeric_column = st.selectbox("Variable numérica para Mann-Whitney", numeric_columns, key="mann_numeric")
-            group_column = st.selectbox("Grupo binario para Mann-Whitney", valid_groups, key="mann_group")
-            try:
-                test = group_difference(data, numeric_column, group_column)
-                st.caption(
-                    f"Contraste Mann-Whitney de {numeric_column} entre {test['grupo_1']} y {test['grupo_2']}: "
-                    f"p={test['p_valor']:.4f}, efecto rank-biserial={test['tamano_efecto_rank_biserial']:.3f}."
-                )
-            except ValueError as error:
-                st.info(str(error))
     with time_tab:
         possible_dates = [
             column
