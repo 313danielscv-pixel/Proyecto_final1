@@ -315,12 +315,14 @@ def main() -> None:
             data_sources=st.session_state.get("data_sources", {}),
         )
 
-    st.markdown(
-        '<div style="font-size:0.73rem;letter-spacing:0.12em;font-weight:700;color:#2cc9a7">RESQ INTELLIGENCE</div>',
-        unsafe_allow_html=True,
-    )
+    if section != "Inicio":
+        st.markdown(
+            '<div style="font-size:0.73rem;letter-spacing:0.12em;font-weight:700;color:#2cc9a7">RESQ INTELLIGENCE</div>',
+            unsafe_allow_html=True,
+        )
     st.title(section)
-    st.caption(PAGE_DESCRIPTIONS[section])
+    if section != "Inicio":
+        st.caption(PAGE_DESCRIPTIONS[section])
 
     if section == "Inicio":
         render_home()
