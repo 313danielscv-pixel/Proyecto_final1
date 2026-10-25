@@ -24,7 +24,6 @@ from src.platform_ui import (
     render_home,
     render_inventory_profitability,
     render_lot_risk,
-    render_methodology,
     render_real_demand,
     render_report,
     render_scenarios,
@@ -42,7 +41,6 @@ PAGE_DESCRIPTIONS = {
     "Escenarios": "Compara el margen base con supuestos explícitos de precio y demanda.",
     "Fuentes": "Comprueba la procedencia y naturaleza de los datos disponibles en esta sesión.",
     "Informe": "Descarga un resumen verificable de calidad, resultados, procedencia y limitaciones.",
-    "Metodología": "Entiende qué calcula cada módulo y qué conclusiones no permite extraer.",
 }
 
 LOGO_PATH = Path(__file__).resolve().parent / "assets" / "resq_logo_lockup.png"
@@ -351,8 +349,6 @@ def main() -> None:
         render_data_sources()
     elif section == "Informe":
         render_report()
-    else:
-        render_methodology()
 
 
 if __name__ == "__main__":

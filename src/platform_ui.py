@@ -348,50 +348,6 @@ def render_report() -> None:
     st.caption("El informe se genera en memoria para esta descarga; los archivos originales no se guardan.")
 
 
-def render_methodology() -> None:
-    """Explain the analysis flow and limitations in presentation-friendly language."""
-    st.subheader("Método y límites")
-    st.markdown(
-        """
-        ### Cómo funciona
-
-        **Cargar → validar → explorar → decidir → comprobar supuestos.**
-        Cada módulo se activa solo con los campos que necesita. La carga libre conserva las columnas
-        originales para explorar datos que todavía no tienen un contrato empresarial.
-
-        ### Qué aporta cada módulo
-
-        - **Calidad de datos:** informa de tipos, nulos, duplicados, conversiones inválidas y valores
-          que requieren revisión; no borra filas automáticamente.
-        - **EDA empresarial y avanzado:** describe demanda y distribuciones, compara grupos,
-          muestra relaciones y patrones temporales, y permite explorar anomalías, deriva,
-          intervalos bootstrap y segmentos.
-        - **Inventario y margen:** calcula demanda media por producto y día natural, cobertura,
-          capital expuesto y señales de rotura o sobrestock; la imputación de días sin ventas requiere
-          confirmar que el periodo está completo.
-        - **Riesgo por lote:** estima qué proporción del stock podría quedar sin vender antes de la
-          fecha límite usando el historial cargado; exige confirmar la cobertura y disponer de 30 días naturales.
-        - **Escenarios y sensibilidad:** compara el margen bajo supuestos explícitos de precio,
-          demanda y almacenamiento. La matriz muestra cómo cambia el resultado al variar los dos
-          primeros supuestos.
-        - **Demanda real:** evalúa una referencia estacional sencilla en FreshRetailNet-50K, con
-          fuente, licencia y métricas documentadas.
-
-        ### Límites que conviene explicar
-
-        El EDA genera preguntas, no demuestra causalidad. Correlación no significa causa; las
-        anomalías requieren revisión; el bootstrap supone observaciones independientes; la deriva
-        señala cambios que deben investigarse. La segmentación es exploratoria. No se aplican
-        SHAP/LIME, inferencia causal ni predicción conformal porque la plataforma no carga un
-        modelo de negocio evaluado ni dispone de un diseño causal para justificarlos.
-
-        Los datos de FreshRetailNet son reales, pero el inventario, los costes y los lotes de la
-        demostración son supuestos. Los resultados de escenarios y riesgo por lote son estimaciones,
-        no ahorros ni mermas confirmados. Los archivos de empresa permanecen en la sesión.
-        """
-    )
-
-
 def render_uploads() -> None:
     """Choose between file uploads and a read-only database source."""
     source_mode = st.radio(

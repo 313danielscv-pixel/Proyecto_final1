@@ -10,6 +10,15 @@ from src.demo_data import DEMO_COLUMN_UNITS
 from src.platform_ui import _eda_axis_label
 
 
+def test_navigation_ends_at_report_without_methodology() -> None:
+    app_path = Path(__file__).resolve().parents[1] / "app.py"
+    app = AppTest.from_file(str(app_path)).run()
+
+    navigation = next(widget for widget in app.radio if widget.key == "main_navigation")
+    assert navigation.options[-1] == "Informe"
+    assert "Metodología" not in navigation.options
+
+
 def test_eda_axis_label_requires_a_declared_unit() -> None:
     assert _eda_axis_label("units", " kg ") == "units (kg)"
     assert _eda_axis_label("units") == "units (unidad no especificada)"
