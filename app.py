@@ -45,7 +45,7 @@ PAGE_DESCRIPTIONS = {
     "Metodología": "Entiende qué calcula cada módulo y qué conclusiones no permite extraer.",
 }
 
-LOGO_PATH = Path(__file__).resolve().parent / "assets" / "resq_icon.png"
+LOGO_PATH = Path(__file__).resolve().parent / "assets" / "resq_logo_lockup.png"
 
 
 def _apply_visual_style() -> None:
@@ -81,38 +81,10 @@ def _apply_visual_style() -> None:
             max-width: 100%;
             margin: 0 auto;
         }
-        .resq-brand-lockup {
-            margin-top: -0.45rem;
-            text-align: center;
-        }
-        .resq-brand-name {
-            color: #e7eef7;
-            font-size: 1rem;
-            font-weight: 800;
-            letter-spacing: 0.14em;
-        }
-        .resq-brand-name span:last-child {
-            color: #2cc9a7;
-        }
-        .resq-brand-subtitle {
-            color: #e7eef7;
-            font-size: 0.58rem;
-            font-weight: 700;
-            letter-spacing: 0.32em;
-            margin-left: 0.32em;
-        }
-        .resq-brand-glow {
-            background: linear-gradient(90deg, transparent, #087bff 28%, #8beaff 50%, #087bff 72%, transparent);
-            border-radius: 50%;
-            box-shadow: 0 0 12px 3px rgba(0, 145, 255, 0.55);
-            height: 2px;
-            margin: 0.55rem auto 0.65rem;
-            width: 64%;
-        }
         .resq-brand-tagline {
             color: var(--rq-muted);
             font-size: 0.75rem;
-            margin-bottom: 1rem;
+            margin: -0.25rem 0 1rem;
             text-align: center;
         }
         [data-testid="stDecoration"] {
@@ -311,18 +283,13 @@ def main() -> None:
     _apply_visual_style()
 
     with st.sidebar:
-        st.image(str(LOGO_PATH), width=205)
-        st.markdown(
-            """
-            <div class="resq-brand-lockup">
-              <div class="resq-brand-name"><span>RES</span><span>Q</span></div>
-              <div class="resq-brand-subtitle">INTELLIGENCE</div>
-            </div>
-            <div class="resq-brand-glow"></div>
-            <div class="resq-brand-tagline">Decisiones basadas en datos</div>
-            """,
-            unsafe_allow_html=True,
-        )
+        _, brand, _ = st.columns([0.1, 1, 0.1], gap="small")
+        with brand:
+            st.image(str(LOGO_PATH), width=210)
+            st.markdown(
+                '<div class="resq-brand-tagline">Decisiones basadas en datos</div>',
+                unsafe_allow_html=True,
+            )
         section = st.radio(
             "Navegación",
             list(PAGE_DESCRIPTIONS),
