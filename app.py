@@ -81,13 +81,25 @@ def _apply_visual_style() -> None:
             max-width: 100%;
             margin: 0 auto;
         }
-        .resq-brand-wordmark {
+        .resq-brand-lockup {
+            margin-top: -0.45rem;
+            text-align: center;
+        }
+        .resq-brand-name {
             color: #e7eef7;
-            font-size: 0.72rem;
+            font-size: 1rem;
+            font-weight: 800;
+            letter-spacing: 0.14em;
+        }
+        .resq-brand-name span:last-child {
+            color: #2cc9a7;
+        }
+        .resq-brand-subtitle {
+            color: #e7eef7;
+            font-size: 0.58rem;
             font-weight: 700;
             letter-spacing: 0.32em;
-            margin: -0.45rem 0 0 0.32em;
-            text-align: center;
+            margin-left: 0.32em;
         }
         .resq-brand-glow {
             background: linear-gradient(90deg, transparent, #087bff 28%, #8beaff 50%, #087bff 72%, transparent);
@@ -302,7 +314,10 @@ def main() -> None:
         st.image(str(LOGO_PATH), width=205)
         st.markdown(
             """
-            <div class="resq-brand-wordmark">INTELLIGENCE</div>
+            <div class="resq-brand-lockup">
+              <div class="resq-brand-name"><span>RES</span><span>Q</span></div>
+              <div class="resq-brand-subtitle">INTELLIGENCE</div>
+            </div>
             <div class="resq-brand-glow"></div>
             <div class="resq-brand-tagline">Decisiones basadas en datos</div>
             """,
