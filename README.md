@@ -18,6 +18,7 @@ El caso FreshMarket se conserva como demostración especializada de perecederos.
 - EDA avanzado reutilizable: perfilado, nulos, duplicados, valores negativos, distribuciones, atípicos, anomalías temporales, bootstrap, deriva y segmentación exploratoria.
 - Cobertura de inventario, riesgo de rotura, sobrestock y capital expuesto.
 - Riesgo por lote opcional para empresas con stock por lote y fecha límite, con demanda media por día natural y proporción estimada de stock sin vender.
+- Pestaña ResQ Data con análisis descriptivo de un caso FreshMarket de demostración, basado en registros sintéticos.
 - Simulador de escenarios de precio, volumen y coste de almacenamiento.
 - Comparación de una media móvil de 7 días con una referencia estacional sobre datos reales de FreshRetailNet-50K.
 - Caso vertical FreshMarket: riesgo de merma por lote, descuentos y donación.
@@ -67,7 +68,8 @@ La app usa una navegación lateral y una portada con indicadores condicionales: 
 3. **Análisis exploratorio**: alterna entre el EDA empresarial —resumen, productos, distribución, temporalidad, calidad y hallazgos— y el EDA avanzado reutilizable.
 4. **Demanda**: muestra la evaluación reproducible sobre FreshRetailNet-50K.
 5. **Inventario y rentabilidad**, **Riesgo por lote** y **Escenarios**: muestran indicadores o estimaciones con requisitos y límites visibles.
-6. **Informe**: descarga un resumen Markdown de calidad, resultados disponibles, fuentes, supuestos y limitaciones; no exporta filas originales.
+6. **ResQ Data**: recupera el caso sintético de FreshMarket de la propuesta original.
+7. **Informe**: descarga un resumen Markdown de calidad, resultados disponibles, fuentes, supuestos y limitaciones; no exporta filas originales.
 
 El EDA avanzado solo activa cada técnica si la muestra y los tipos de datos la justifican. El bootstrap exige 10 observaciones y asume independencia; no debe usarse como incertidumbre temporal cuando existe autocorrelación. La deriva requiere 20 observaciones en cada periodo; la segmentación exige dos variables numéricas y una muestra suficiente. Las fechas se agregan a día y los valores extremos se incluyen en el PSI. Sus resultados describen patrones y limitaciones: no demuestran causalidad ni sustituyen un modelo predictivo evaluado.
 

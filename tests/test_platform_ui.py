@@ -16,8 +16,22 @@ def test_navigation_ends_at_report_without_removed_sections() -> None:
 
     navigation = next(widget for widget in app.radio if widget.key == "main_navigation")
     assert navigation.options[-1] == "Informe"
+    assert "ResQ Data" in navigation.options
     assert "Metodología" not in navigation.options
     assert "Fuentes" not in navigation.options
+
+
+def test_resqdata_page_renders_its_synthetic_case() -> None:
+    app_path = Path(__file__).resolve().parents[1] / "app.py"
+    app = AppTest.from_file(str(app_path)).run()
+    next(widget for widget in app.radio if widget.key == "main_navigation").set_value(
+        "ResQ Data"
+    )
+    app.run()
+
+    assert len(app.exception) == 0
+    assert len(app.metric) == 8
+    assert len(app.get("plotly_chart")) == 2
 
 
 def test_eda_axis_label_requires_a_declared_unit() -> None:

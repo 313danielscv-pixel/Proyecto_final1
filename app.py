@@ -25,6 +25,7 @@ from src.platform_ui import (
     render_lot_risk,
     render_real_demand,
     render_report,
+    render_resqdata_case,
     render_scenarios,
     render_uploads,
 )
@@ -38,6 +39,7 @@ PAGE_DESCRIPTIONS = {
     "Inventario y rentabilidad": "Revisa cobertura, capital en inventario y señales de rotura o sobrestock.",
     "Riesgo por lote": "Prioriza lotes con fecha límite usando las ventas históricas cargadas.",
     "Escenarios": "Compara el margen base con supuestos explícitos de precio y demanda.",
+    "ResQ Data": "Revisa el caso FreshMarket con datos sintéticos del prototipo original.",
     "Informe": "Descarga un resumen verificable de calidad, resultados, procedencia y limitaciones.",
 }
 
@@ -343,6 +345,8 @@ def main() -> None:
         render_lot_risk()
     elif section == "Escenarios":
         render_scenarios()
+    elif section == "ResQ Data":
+        render_resqdata_case()
     elif section == "Informe":
         render_report()
 
