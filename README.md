@@ -18,7 +18,7 @@ El caso FreshMarket se conserva como demostración especializada de perecederos.
 - EDA avanzado reutilizable: perfilado, nulos, duplicados, valores negativos, distribuciones, atípicos, anomalías temporales, bootstrap, deriva y segmentación exploratoria.
 - Cobertura de inventario, riesgo de rotura, sobrestock y capital expuesto.
 - Riesgo por lote opcional para empresas con stock por lote y fecha límite, con demanda media por día natural y proporción estimada de stock sin vender.
-- Pestaña ResQ Data con análisis descriptivo de un caso FreshMarket de demostración, basado en registros sintéticos.
+- EDA avanzado con caso sintético ResQ Data y análisis Naive Bayes de riesgo de merma para snapshots históricos etiquetados, validando siempre por lotes separados.
 - Simulador de escenarios de precio, volumen y coste de almacenamiento.
 - Comparación de una media móvil de 7 días con una referencia estacional sobre datos reales de FreshRetailNet-50K.
 - Caso vertical FreshMarket: riesgo de merma por lote, descuentos y donación.
@@ -65,13 +65,14 @@ La app usa una navegación lateral y una portada con indicadores condicionales: 
 
 1. **Inicio**: resume ventas, margen estimado, capital y lotes prioritarios cuando los datos permiten calcularlos.
 2. **Datos y calidad**: importa CSV o Excel por contrato o conserva todas las columnas mediante la carga libre para EDA.
-3. **Análisis exploratorio**: alterna entre el EDA empresarial —resumen, productos, distribución, temporalidad, calidad y hallazgos— y el EDA avanzado reutilizable.
+3. **Análisis exploratorio**: alterna entre el EDA empresarial y el EDA avanzado, que incluye distribuciones, temporalidad, robustez, análisis bayesiano y el caso sintético ResQ Data.
 4. **Demanda**: muestra la evaluación reproducible sobre FreshRetailNet-50K.
 5. **Inventario y rentabilidad**, **Riesgo por lote** y **Escenarios**: muestran indicadores o estimaciones con requisitos y límites visibles.
-6. **ResQ Data**: recupera el caso sintético de FreshMarket de la propuesta original.
-7. **Informe**: descarga un resumen Markdown de calidad, resultados disponibles, fuentes, supuestos y limitaciones; no exporta filas originales.
+6. **Informe**: descarga un resumen Markdown de calidad, resultados disponibles, fuentes, supuestos y limitaciones; no exporta filas originales.
 
 El EDA avanzado solo activa cada técnica si la muestra y los tipos de datos la justifican. El bootstrap exige 10 observaciones y asume independencia; no debe usarse como incertidumbre temporal cuando existe autocorrelación. La deriva requiere 20 observaciones en cada periodo; la segmentación exige dos variables numéricas y una muestra suficiente. Las fechas se agregan a día y los valores extremos se incluyen en el PSI. Sus resultados describen patrones y limitaciones: no demuestran causalidad ni sustituyen un modelo predictivo evaluado.
+
+El análisis Naive Bayes requiere snapshots de lotes con las columnas de la plantilla descargable desde **EDA avanzado → Riesgo bayesiano**. `hubo_merma` debe indicar el resultado final (1/0) para al menos 20 lotes y cuatro lotes de cada clase; puede dejarse vacío en snapshots de lotes todavía sin resultado. La validación mantiene todas las filas de cada lote en una sola partición. Las probabilidades son orientativas, no están calibradas y no prueban causalidad ni rendimiento en producción.
 
 Para la demanda de inventario y lotes, ResQ divide las unidades por los días naturales desde la primera fecha registrada de cada producto hasta el final del extracto, solo cuando se confirma que este cubre todos los días del periodo. Sin esa confirmación, la media usa fechas con registro y el módulo de riesgo por lote no calcula estimaciones. Un producto con stock positivo y demanda registrada igual a cero se marca como sobrestock.
 

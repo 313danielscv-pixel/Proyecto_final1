@@ -36,6 +36,7 @@ from src.advanced_eda import (
     segment_rows,
     temporal_summary,
 )
+from src.bayesian_waste_risk import SNAPSHOT_COLUMNS, evaluate_bayesian_waste_risk
 from src.contracts import DATASET_CONTRACTS, COSTS_CONTRACT, INVENTORY_CONTRACT, LOTS_CONTRACT, SALES_CONTRACT
 from src.demo_data import DEMO_COLUMN_UNITS, DEMO_DIRECTORY
 from src.ingestion import parse_frame, parse_free_tabular, parse_tabular
@@ -1223,7 +1224,12 @@ def render_advanced_eda() -> None:
     st.write("Sigue este recorrido: selecciona datos, revisa su calidad y después explora la pregunta que te interesa.")
     data_sets = _eda_data()
     if not data_sets:
-        st.info("Carga un CSV o Excel para activar el EDA avanzado.")
+        st.info("Carga un CSV o Excel para analizar tus datos. El caso sintético ResQ Data sigue disponible como referencia.")
+        bayesian_tab, case_tab = st.tabs(["Riesgo bayesiano", "Caso ResQ Data"])
+        with bayesian_tab:
+            _render_bayesian_risk_tab(None)
+        with case_tab:
+            render_resqdata_case()
         return
     dataset_options = sorted(data_sets)
     default_dataset = "sales" if "sales" in data_sets else dataset_options[0]
@@ -1281,8 +1287,15 @@ def render_advanced_eda() -> None:
     def axis_label(column: object) -> str:
         return _eda_axis_label(column, unit_labels.get(column, ""))
 
-    profile_tab, univariate_tab, time_tab, robustness_tab = st.tabs(
-        ["Perfil y calidad", "Distribuciones", "Tiempo y anomalías", "Robustez"]
+    profile_tab, univariate_tab, time_tab, robustness_tab, bayesian_tab, case_tab = st.tabs(
+        [
+            "Perfil y calidad",
+            "Distribuciones",
+            "Tiempo y anomalías",
+            "Robustez",
+            "Riesgo bayesiano",
+            "Caso ResQ Data",
+        ]
     )
     with profile_tab:
         report = quality_summary(data)
@@ -1517,6 +1530,92 @@ def render_advanced_eda() -> None:
                     )
                 except ValueError as error:
                     st.warning(str(error))
+    with bayesian_tab:
+        _render_bayesian_risk_tab(data)
+    with case_tab:
+        render_resqdata_case()
+
+
+def _render_bayesian_risk_tab(data: pd.DataFrame | None) -> None:
+    st.subheader("Riesgo de merma con Naive Bayes")
+    st.write(
+        "Compara snapshots históricos de lotes con y sin merma para estimar su nivel de riesgo. "
+        "Sube aquí un CSV/Excel ya preparado o cárgalo en **Datos y calidad → Dataset libre para EDA**."
+    )
+    st.warning(
+        "La probabilidad es orientativa y no está calibrada. Naive Bayes supone independencia entre variables; "
+        "la asociación no demuestra causalidad ni garantiza el resultado de lotes futuros."
+    )
+    template = pd.DataFrame(columns=SNAPSHOT_COLUMNS)
+    st.download_button(
+        "Descargar plantilla de snapshots",
+        template.to_csv(index=False).encode("utf-8"),
+        file_name="plantilla_riesgo_merma.csv",
+        mime="text/csv",
+    )
+    st.caption(
+        "Una fila representa un lote en una fecha de corte. Separa los lotes: todas las filas de un lote "
+        "deben compartir su etiqueta final `hubo_merma` (0/1); déjala vacía solo para lotes aún sin resultado. "
+        "Incluye al menos 20 lotes etiquetados, con al menos 4 de cada clase. Usa solo variables conocidas "
+        "en la fecha del snapshot, nunca información posterior al resultado."
+    )
+    upload = st.file_uploader(
+        "Snapshots de riesgo (CSV o Excel)",
+        type=["csv", "xlsx"],
+        key="bayesian_waste_risk_upload",
+    )
+    uploaded_data: pd.DataFrame | None = None
+    if upload is not None:
+        try:
+            uploaded_data = parse_free_tabular(upload.getvalue(), upload.name)
+        except (UnicodeDecodeError, ValueError, pd.errors.ParserError) as error:
+            st.error(f"No se pudo leer el archivo de snapshots: {error}")
+            return
+    selected_data = uploaded_data if uploaded_data is not None else data
+    if selected_data is None:
+        st.info("Carga un dataset de snapshots para ejecutar el análisis.")
+        return
+    missing_columns = set(SNAPSHOT_COLUMNS) - set(selected_data.columns)
+    if missing_columns:
+        st.info(
+            "El conjunto seleccionado no tiene el formato de snapshots necesario. "
+            f"Faltan: {', '.join(sorted(missing_columns))}."
+        )
+        return
+    if st.button("Calcular riesgo bayesiano", key="run_bayesian_waste_risk"):
+        try:
+            result = evaluate_bayesian_waste_risk(selected_data)
+        except ValueError as error:
+            st.warning(str(error))
+            return
+        metrics = result["metrics"]
+        first, second, third, fourth = st.columns(4)
+        first.metric("Lotes de entrenamiento", metrics["lotes_entrenamiento"])
+        second.metric("Lotes de validación", metrics["lotes_validacion"])
+        third.metric("AUC-ROC por lote", f"{metrics['auc_roc_por_lote']:.3f}")
+        fourth.metric("Tasa de merma validación", f"{metrics['tasa_merma_validacion']:.1%}")
+        st.caption(
+            f"Precisión al umbral 0,5: {metrics['precision_05_por_lote']:.1%} · "
+            f"sensibilidad: {metrics['recall_05_por_lote']:.1%} · "
+            f"precisión media (PR): {metrics['average_precision_por_lote']:.3f}. "
+            "Las métricas se calculan sobre lotes separados del entrenamiento."
+        )
+        predictions = result["predictions"].rename(
+            columns={
+        "lote_id": "lote",
+        "snapshot_date": "fecha_snapshot",
+        "hubo_merma": "merma_observada",
+        "probabilidad_merma": "probabilidad_merma",
+        "tipo_resultado": "tipo_resultado",
+            }
+        )
+        st.dataframe(predictions, use_container_width=True, hide_index=True)
+        st.download_button(
+            "Descargar resultados bayesianos",
+            predictions.to_csv(index=False).encode("utf-8"),
+            file_name="riesgo_bayesiano_lotes.csv",
+            mime="text/csv",
+        )
 
 def render_inventory_profitability() -> None:
     """Render coverage and capital metrics if sales and inventory are available."""

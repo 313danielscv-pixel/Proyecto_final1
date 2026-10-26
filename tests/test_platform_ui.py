@@ -16,16 +16,20 @@ def test_navigation_ends_at_report_without_removed_sections() -> None:
 
     navigation = next(widget for widget in app.radio if widget.key == "main_navigation")
     assert navigation.options[-1] == "Informe"
-    assert "ResQ Data" in navigation.options
+    assert "ResQ Data" not in navigation.options
     assert "Metodología" not in navigation.options
     assert "Fuentes" not in navigation.options
 
 
-def test_resqdata_page_renders_its_synthetic_case() -> None:
+def test_resqdata_case_is_available_inside_advanced_eda_without_uploads() -> None:
     app_path = Path(__file__).resolve().parents[1] / "app.py"
     app = AppTest.from_file(str(app_path)).run()
     next(widget for widget in app.radio if widget.key == "main_navigation").set_value(
-        "ResQ Data"
+        "Análisis exploratorio"
+    )
+    app.run()
+    next(widget for widget in app.radio if widget.key == "analysis_view").set_value(
+        "EDA avanzado"
     )
     app.run()
 
@@ -113,6 +117,46 @@ def test_advanced_eda_applies_declared_units_to_chart_axes() -> None:
     assert len(app.exception) == 0
 
 
+def test_advanced_eda_exposes_bayesian_analysis_for_snapshot_uploads() -> None:
+    rows = []
+    for lot_number in range(40):
+        label = int(lot_number < 20)
+        rows.append(
+            {
+                "lote_id": f"LOT-{lot_number:03}",
+                "snapshot_date": "2026-01-01",
+                "tienda_nombre": f"STORE-{lot_number % 3}",
+                "tipo_ubicacion": "refrigerado",
+                "categoria": "perecedero" if label else "estable",
+                "dias_vida_util": 4 + lot_number % 15,
+                "dias_restantes": 2,
+                "unidades_recibidas": 10 + lot_number,
+                "stock_estimado": 5 + lot_number,
+                "velocidad_venta_diaria": 0.2 + lot_number / 10,
+                "precio_venta_base": 2.0 + lot_number / 10,
+                "coste_unitario": 1.0 + lot_number / 20,
+                "dia_semana": "lunes",
+                "hubo_merma": label,
+            }
+        )
+    app = AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py"))
+    app.session_state["free_eda_data"] = {"snapshots": pd.DataFrame(rows)}
+    app.run()
+    next(widget for widget in app.radio if widget.key == "main_navigation").set_value(
+        "Análisis exploratorio"
+    )
+    app.run()
+    next(widget for widget in app.radio if widget.key == "analysis_view").set_value(
+        "EDA avanzado"
+    )
+    app.run()
+    next(widget for widget in app.button if widget.label == "Calcular riesgo bayesiano").click()
+    app.run()
+
+    assert len(app.exception) == 0
+    assert any(metric.label == "AUC-ROC por lote" for metric in app.metric)
+
+
 def test_business_distribution_histogram_labels_frequency_axis() -> None:
     demo_sales = (
         Path(__file__).resolve().parents[1]
@@ -198,6 +242,8 @@ def test_demo_eda_preloads_units_for_each_dataset() -> None:
         "Distribuciones",
         "Tiempo y anomalías",
         "Robustez",
+        "Riesgo bayesiano",
+        "Caso ResQ Data",
     ]
     dataset_selector = next(
         widget for widget in app.selectbox if widget.label == "Conjunto de datos"
