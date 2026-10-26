@@ -92,14 +92,45 @@ En **Datos y calidad** puedes elegir **Base de datos** para conectar MySQL, Post
 
 Por seguridad, el servidor solo acepta por defecto conexiones a `localhost`, `127.0.0.1` y `::1`. Para autorizar otro host de confianza, configura `RESQ_DB_ALLOWED_HOSTS` en el entorno del proceso Streamlit. Las credenciales se mantienen solo en memoria durante la sesión; no las añadas al repositorio. El conector limita las importaciones a 100.000 filas y rechaza una tabla que supere el límite elegido.
 
-Para iniciar la base PostgreSQL sintética de demostración, copia `.env.example` a `.env`, cambia las dos contraseñas locales y ejecuta:
+#### PostgreSQL de demostración con Docker (opcional)
+
+Docker no es necesario para probar la aplicación ni sus CSV de demostración. Este Compose inicia únicamente PostgreSQL; Streamlit se ejecuta con Python en el equipo.
+
+Requiere Docker Desktop con Docker Compose. Desde la carpeta del repositorio, crea `.env` a partir de la plantilla y sustituye ambos valores de ejemplo por contraseñas locales:
+
+```powershell
+Copy-Item .env.example .env
+notepad .env
+```
+
+En macOS o Linux, usa `cp .env.example .env` en lugar de `Copy-Item`. No compartas ni subas `.env`; Git lo ignora.
+
+Inicia la base de datos y comprueba que esté saludable:
 
 ```powershell
 docker compose up -d
-streamlit run app.py
+docker compose ps
 ```
 
-En la app, conecta con PostgreSQL en `localhost:5433`, base `resq_demo`, usuario `resq_reader` y la contraseña de solo lectura configurada en `.env`. La base solo contiene filas sintéticas y el puerto se publica en loopback. El archivo `.env` está excluido de Git.
+El script `docker/postgres/init.sql` crea tablas y filas sintéticas, y prepara el usuario de solo lectura. En ResQ, ve a **Datos y calidad → Base de datos**, selecciona PostgreSQL y conecta con:
+
+- Host: `localhost`
+- Puerto: `5433`
+- Base de datos: `resq_demo`
+- Usuario: `resq_reader`
+- Contraseña: el valor de `RESQ_DEMO_POSTGRES_READONLY_PASSWORD` en `.env`
+
+El puerto solo se publica en el equipo local y los datos de PostgreSQL se guardan en el volumen Docker `resq_demo_postgres_data`. Para parar el servicio sin borrar ese volumen:
+
+```powershell
+docker compose down
+```
+
+Para borrar también la base sintética y empezar de cero:
+
+```powershell
+docker compose down -v
+```
 
 ### Asistente local de ResQ
 
@@ -112,34 +143,54 @@ ollama pull qwen3.6:latest
 
 Si Ollama ya está ejecutándose, no hace falta iniciar otro servicio. La app detecta los modelos al pulsar **Conectar con Ollama**. Puede seleccionarse otro modelo con `OLLAMA_MODEL`. El contexto incluye el README y todos los documentos Markdown disponibles en `docs/`. Para tablas pequeñas incluye las filas completas (hasta 20 filas, 15 columnas y 2.500 caracteres); para tablas grandes usa perfiles y una muestra de hasta 8 filas. Si hay ventas y lotes, también aporta el cálculo exacto del riesgo por lote para hasta 20 lotes prioritarios y sus agregados, sin depender de la muestra de ventas.
 
-### Demostración lista para ejecutar
+### Datos incluidos y demostración
 
-En **Cargar datos empresa**, pulsa **“Cargar demostración con demanda real”**. El botón activa automáticamente:
+Los cuatro CSV de `data/demo/` están versionados y se pueden usar sin descargar nada ni iniciar Docker. En **Inicio**, pulsa **Cargar demostración** para cargar:
 
-- ventas reales derivadas de FreshRetailNet-50K;
-- un inventario, costes y lote de escenario para mostrar todas las vistas de la app;
-- EDA empresarial, inventario, escenarios y riesgo por lote.
+- ventas derivadas de FreshRetailNet-50K;
+- inventario, costes y lotes sintéticos para probar las vistas de empresa.
 
 Las ventas proceden de la fuente real documentada. El inventario, los costes y la fecha límite se etiquetan como supuestos de escenario porque FreshRetailNet-50K no publica esos datos internos.
 
-Las dos capturas siguientes corresponden al prototipo histórico ResQData AI/FreshMarket y usan datos sintéticos del piloto. Se incluyen para explicar la evolución del proyecto, no como pantallas de ResQ Intelligence. La segunda captura muestra el clasificador antiguo y su probabilidad estimada; el módulo actual de riesgo por lote calcula una proporción estimada de stock no vendido y no presenta una probabilidad calibrada.
+Para probar tus propios archivos, abre **Datos y calidad** y elige **Archivos CSV/Excel**. Puedes cargar los conjuntos empresariales disponibles o usar **Dataset libre para EDA**; después selecciónalos en **Análisis exploratorio**. Los archivos subidos se mantienen solo en la sesión y no se guardan en el repositorio.
+
+Las capturas siguientes corresponden a un prototipo histórico de FreshMarket y usan datos sintéticos del piloto. Se incluyen como referencia visual, no como pantallas actuales de ResQ Intelligence. La segunda muestra un clasificador anterior; el módulo actual de riesgo por lote estima la proporción de stock que podría quedar sin vender y no presenta una probabilidad calibrada.
 
 ![Panel histórico de análisis de FreshMarket con datos sintéticos; no es la interfaz actual](docs/eda_dashboard.png)
 
 ![Flujo histórico del clasificador por lote del piloto sintético; no representa el cálculo actual](docs/prediction_workflow.png)
 
-## Ejecución local
+## Instalación local y primera prueba
 
-Requiere Python 3.11 o superior. Desde la carpeta raíz del repositorio:
+Requiere Python 3.11 o superior. Clona el repositorio y entra en su carpeta:
 
 ```powershell
+git clone --branch publish-main https://github.com/313danielscv-pixel/Proyecto_final1.git
+Set-Location Proyecto_final1
+```
+
+En macOS o Linux, usa `cd Proyecto_final1` en lugar de `Set-Location Proyecto_final1`.
+
+Crea un entorno virtual, actívalo e instala las dependencias:
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
+```
+
+En macOS o Linux, crea y activa el entorno con `python3.11 -m venv .venv` y `source .venv/bin/activate`; después ejecuta los mismos comandos `python -m pip`.
+
+Inicia la aplicación:
+
+```powershell
 streamlit run app.py
 ```
 
-El primer comando instala las dependencias declaradas; el segundo inicia la aplicación en el navegador. Para arrancar la app en sesiones posteriores basta con `streamlit run app.py`.
+Se abrirá en `http://localhost:8501`. En **Inicio**, pulsa **Cargar demostración** para probarla con los datos incluidos. En sesiones posteriores basta con activar el entorno virtual y ejecutar `streamlit run app.py`.
 
-El caso FreshMarket genera sus artefactos locales si faltan. La app no almacena los CSV cargados por una empresa fuera de la sesión del navegador.
+La aplicación funciona sin Docker. Docker solo es necesario para probar la base PostgreSQL descrita arriba. Los datos que carga el usuario no se guardan fuera de su sesión del navegador.
 
 ## Regenerar evidencias
 

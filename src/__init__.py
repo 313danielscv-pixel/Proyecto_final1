@@ -1,2 +1,1 @@
-"""ResQData AI project package."""
-
+"""ResQ Intelligence package."""
