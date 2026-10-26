@@ -42,7 +42,6 @@ from src.demo_data import DEMO_COLUMN_UNITS, DEMO_DIRECTORY
 from src.ingestion import parse_frame, parse_free_tabular, parse_tabular
 from src.lot_risk import build_lot_risk
 from src.real_demand import FORECAST_PATH, METRICS_PATH, SOURCE_URL
-from src.resqdata_case import load_resqdata_case
 from src.reporting import build_analysis_report
 
 
@@ -248,95 +247,6 @@ def render_home() -> None:
         with column:
             st.markdown(f"#### {title}")
             st.caption(description)
-
-
-def render_resqdata_case() -> None:
-    """Show the synthetic FreshMarket case from the original ResQ Data project."""
-    case = load_resqdata_case()
-    summary = case["summary"].iloc[0]
-    categories = case["categories"]
-    stores = case["stores"]
-
-    st.subheader("Caso FreshMarket de ResQ Data")
-    st.warning(
-        "Esta base es sintética y se creó para el prototipo: no contiene datos reales de FreshMarket. "
-        "Esta vista es descriptiva; no ejecuta un modelo predictivo validado ni aplica cambios al TPV."
-    )
-
-    first, second, third, fourth = st.columns(4)
-    first.metric("Tiendas del escenario", f"{int(summary['tiendas']):,}")
-    second.metric("Lotes", f"{int(summary['lotes']):,}")
-    third.metric("Registros de venta", f"{int(summary['registros_venta']):,}")
-    fourth.metric("Coste de merma simulado", f"{summary['coste_merma_eur']:,.2f} €")
-
-    first, second, third, fourth = st.columns(4)
-    first.metric("Registros de merma", f"{int(summary['registros_merma']):,}")
-    second.metric("Unidades mermadas", f"{summary['unidades_mermadas']:,.0f}")
-    third.metric("Unidades donadas", f"{summary['unidades_donadas']:,.0f}")
-    fourth.metric("Días con ventas", f"{int(summary['dias_venta']):,}")
-
-    categories_column, stores_column = st.columns(2)
-    with categories_column:
-        st.plotly_chart(
-            px.bar(
-                categories,
-                x="coste_merma_eur",
-                y="categoria",
-                orientation="h",
-                text_auto=".0f",
-                title="Coste de merma por categoría (escenario)",
-                labels={
-                    "coste_merma_eur": "Coste simulado (€)",
-                    "categoria": "Categoría",
-                },
-            ),
-            use_container_width=True,
-        )
-    with stores_column:
-        st.plotly_chart(
-            px.bar(
-                stores,
-                x="coste_merma_eur",
-                y="tienda",
-                orientation="h",
-                text_auto=".0f",
-                title="Coste de merma por tienda (escenario)",
-                labels={
-                    "coste_merma_eur": "Coste simulado (€)",
-                    "tienda": "Tienda ficticia",
-                },
-            ),
-            use_container_width=True,
-        )
-
-    category_share = categories.set_index("categoria")["porcentaje_coste"]
-    prepared_share = float(category_share.get("Platos Preparados", 0))
-    fish_share = float(category_share.get("Pescadería", 0))
-    st.info(
-        f"En este caso sintético, Platos Preparados concentra el {prepared_share:.1f}% "
-        f"y Pescadería el {fish_share:.1f}% del coste de merma "
-        f"({prepared_share + fish_share:.1f}% entre ambas)."
-    )
-    st.markdown("#### Productos con mayor coste de merma")
-    st.dataframe(
-        case["top_products"].rename(
-            columns={
-                "producto": "Producto",
-                "categoria": "Categoría",
-                "unidades_mermadas": "Unidades mermadas",
-                "coste_merma_eur": "Coste simulado (€)",
-            }
-        ).style.format(
-            {"Unidades mermadas": "{:,.0f}", "Coste simulado (€)": "{:,.2f}"}
-        ),
-        use_container_width=True,
-        hide_index=True,
-    )
-    st.caption(
-        f"La base también contiene {int(summary['registros_donacion']):,} registros de donación "
-        f"({summary['valor_donacion_eur']:,.2f} € de valor simulado). "
-        "Las cifras no validan ahorros, impacto ambiental ni la eficacia de descuentos."
-    )
 
 
 def render_report() -> None:
@@ -1224,12 +1134,10 @@ def render_advanced_eda() -> None:
     st.write("Sigue este recorrido: selecciona datos, revisa su calidad y después explora la pregunta que te interesa.")
     data_sets = _eda_data()
     if not data_sets:
-        st.info("Carga un CSV o Excel para analizar tus datos. El caso sintético ResQ Data sigue disponible como referencia.")
-        bayesian_tab, case_tab = st.tabs(["Riesgo bayesiano", "Caso ResQ Data"])
+        st.info("Carga un CSV o Excel para analizar tus datos.")
+        bayesian_tab = st.tabs(["Riesgo bayesiano"])[0]
         with bayesian_tab:
             _render_bayesian_risk_tab(None)
-        with case_tab:
-            render_resqdata_case()
         return
     dataset_options = sorted(data_sets)
     default_dataset = "sales" if "sales" in data_sets else dataset_options[0]
@@ -1287,14 +1195,13 @@ def render_advanced_eda() -> None:
     def axis_label(column: object) -> str:
         return _eda_axis_label(column, unit_labels.get(column, ""))
 
-    profile_tab, univariate_tab, time_tab, robustness_tab, bayesian_tab, case_tab = st.tabs(
+    profile_tab, univariate_tab, time_tab, robustness_tab, bayesian_tab = st.tabs(
         [
             "Perfil y calidad",
             "Distribuciones",
             "Tiempo y anomalías",
             "Robustez",
             "Riesgo bayesiano",
-            "Caso ResQ Data",
         ]
     )
     with profile_tab:
@@ -1532,8 +1439,6 @@ def render_advanced_eda() -> None:
                     st.warning(str(error))
     with bayesian_tab:
         _render_bayesian_risk_tab(data)
-    with case_tab:
-        render_resqdata_case()
 
 
 def _render_bayesian_risk_tab(data: pd.DataFrame | None) -> None:

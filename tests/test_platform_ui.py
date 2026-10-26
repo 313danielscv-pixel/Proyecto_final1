@@ -21,7 +21,7 @@ def test_navigation_ends_at_report_without_removed_sections() -> None:
     assert "Fuentes" not in navigation.options
 
 
-def test_resqdata_case_is_available_inside_advanced_eda_without_uploads() -> None:
+def test_advanced_eda_without_uploads_shows_only_bayesian_analysis() -> None:
     app_path = Path(__file__).resolve().parents[1] / "app.py"
     app = AppTest.from_file(str(app_path)).run()
     next(widget for widget in app.radio if widget.key == "main_navigation").set_value(
@@ -34,8 +34,8 @@ def test_resqdata_case_is_available_inside_advanced_eda_without_uploads() -> Non
     app.run()
 
     assert len(app.exception) == 0
-    assert len(app.metric) == 8
-    assert len(app.get("plotly_chart")) == 2
+    assert [tab.label for tab in app.tabs] == ["Riesgo bayesiano"]
+    assert app.get("file_uploader")[0].label == "Snapshots de riesgo (CSV o Excel)"
 
 
 def test_eda_axis_label_requires_a_declared_unit() -> None:
@@ -243,7 +243,6 @@ def test_demo_eda_preloads_units_for_each_dataset() -> None:
         "Tiempo y anomalías",
         "Robustez",
         "Riesgo bayesiano",
-        "Caso ResQ Data",
     ]
     dataset_selector = next(
         widget for widget in app.selectbox if widget.label == "Conjunto de datos"

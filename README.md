@@ -2,8 +2,6 @@
 
 ResQ Intelligence es una plataforma B2B para convertir datos empresariales en decisiones de demanda, inventario y rentabilidad. Una empresa puede cargar sus CSV, revisar su calidad, detectar riesgos operativos y comparar escenarios económicos con supuestos visibles.
 
-El caso FreshMarket se conserva como demostración especializada de perecederos. Está identificado como piloto sintético y no se presenta como operación real.
-
 ## Pregunta de negocio
 
 > ¿Qué decisiones debe priorizar una empresa para proteger su margen a partir de su demanda, inventario y costes?
@@ -18,10 +16,9 @@ El caso FreshMarket se conserva como demostración especializada de perecederos.
 - EDA avanzado reutilizable: perfilado, nulos, duplicados, valores negativos, distribuciones, atípicos, anomalías temporales, bootstrap, deriva y segmentación exploratoria.
 - Cobertura de inventario, riesgo de rotura, sobrestock y capital expuesto.
 - Riesgo por lote opcional para empresas con stock por lote y fecha límite, con demanda media por día natural y proporción estimada de stock sin vender.
-- EDA avanzado con caso sintético ResQ Data y análisis Naive Bayes de riesgo de merma para snapshots históricos etiquetados, validando siempre por lotes separados.
+- Análisis Naive Bayes de riesgo de merma para snapshots históricos etiquetados, validando siempre por lotes separados.
 - Simulador de escenarios de precio, volumen y coste de almacenamiento.
 - Comparación de una media móvil de 7 días con una referencia estacional sobre datos reales de FreshRetailNet-50K.
-- Caso vertical FreshMarket: riesgo de merma por lote, descuentos y donación.
 
 ## Contratos de datos
 
@@ -36,7 +33,6 @@ La plataforma no exige un esquema único ni datos de caducidad. Cada módulo se 
 | Fuente | Uso | Naturaleza |
 |---|---|---|
 | FreshRetailNet-50K | Evaluación de previsión de demanda. | Datos reales, licencia CC BY 4.0. |
-| FreshMarket | Caso vertical de merma por lote. | Piloto sintético incluido en el repositorio. |
 | Eurostat `cei_pc035` | Contexto del caso alimentario. | Indicador público agregado. |
 | Eurostat `sts_trtu_m` | Contexto reciente del comercio alimentario en España. | Índice mensual agregado; última observación disponible: agosto de 2026. |
 
@@ -65,7 +61,7 @@ La app usa una navegación lateral y una portada con indicadores condicionales: 
 
 1. **Inicio**: resume ventas, margen estimado, capital y lotes prioritarios cuando los datos permiten calcularlos.
 2. **Datos y calidad**: importa CSV o Excel por contrato o conserva todas las columnas mediante la carga libre para EDA.
-3. **Análisis exploratorio**: alterna entre el EDA empresarial y el EDA avanzado, que incluye distribuciones, temporalidad, robustez, análisis bayesiano y el caso sintético ResQ Data.
+3. **Análisis exploratorio**: alterna entre el EDA empresarial y el EDA avanzado, que incluye distribuciones, temporalidad, robustez y análisis bayesiano.
 4. **Demanda**: muestra la evaluación reproducible sobre FreshRetailNet-50K.
 5. **Inventario y rentabilidad**, **Riesgo por lote** y **Escenarios**: muestran indicadores o estimaciones con requisitos y límites visibles.
 6. **Informe**: descarga un resumen Markdown de calidad, resultados disponibles, fuentes, supuestos y limitaciones; no exporta filas originales.
